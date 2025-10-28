@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
-import { supabase, Profile } from '../lib/supabase';
+import { usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Edit2, UserX, UserCheck, Search, Filter } from 'lucide-react';
 
+interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  role: 'super_admin' | 'admin' | 'coordinator';
+  zone_geographique: string | null;
+  specialite: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 export default function UserManagement() {
   const { profile: currentUser } = useAuth();
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -31,13 +44,11 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
+    try {
+      const data = await usersAPI.getAll();
       setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
     setLoading(false);
   };
@@ -47,48 +58,21 @@ export default function UserManagement() {
     if (!isSuperAdmin) return;
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      await usersAPI.create({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-          }
-        }
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone || null,
+        role: formData.role,
+        zone_geographique: formData.zone_geographique || null,
+        specialite: formData.specialite || null,
+        is_active: true,
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: formData.email,
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            phone: formData.phone || null,
-            role: formData.role,
-            zone_geographique: formData.zone_geographique || null,
-            specialite: formData.specialite || null,
-            is_active: true,
-          });
-
-        if (profileError) throw profileError;
-
-        await supabase.from('activity_logs').insert({
-          user_id: currentUser?.id,
-          action: 'create_user',
-          entity_type: 'profile',
-          entity_id: authData.user.id,
-          details: { email: formData.email, role: formData.role },
-        });
-
-        setShowModal(false);
-        resetForm();
-        fetchUsers();
-      }
+      setShowModal(false);
+      resetForm();
+      fetchUsers();
     } catch (error) {
       console.error('Error creating user:', error);
       alert('Erreur lors de la création de l\'utilisateur');
@@ -100,26 +84,13 @@ export default function UserManagement() {
     if (!editingUser || !isSuperAdmin) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          phone: formData.phone || null,
-          role: formData.role,
-          zone_geographique: formData.zone_geographique || null,
-          specialite: formData.specialite || null,
-        })
-        .eq('id', editingUser.id);
-
-      if (error) throw error;
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'update_user',
-        entity_type: 'profile',
-        entity_id: editingUser.id,
-        details: { email: editingUser.email },
+      await usersAPI.update(editingUser.id, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone || null,
+        role: formData.role,
+        zone_geographique: formData.zone_geographique || null,
+        specialite: formData.specialite || null,
       });
 
       setShowModal(false);
@@ -132,22 +103,16 @@ export default function UserManagement() {
     }
   };
 
-  const toggleUserStatus = async (user: Profile) => {
+  const toggleUserStatus = async (user: User) => {
     if (!isSuperAdmin) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_active: !user.is_active })
-      .eq('id', user.id);
-
-    if (!error) {
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: user.is_active ? 'deactivate_user' : 'activate_user',
-        entity_type: 'profile',
-        entity_id: user.id,
+    try {
+      await usersAPI.update(user.id, {
+        is_active: !user.is_active,
       });
       fetchUsers();
+    } catch (error) {
+      console.error('Error toggling user status:', error);
     }
   };
 
@@ -164,7 +129,7 @@ export default function UserManagement() {
     });
   };
 
-  const openEditModal = (user: Profile) => {
+  const openEditModal = (user: User) => {
     setEditingUser(user);
     setFormData({
       email: user.email,

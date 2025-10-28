@@ -1,10 +1,21 @@
-import { createContext, useContext, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import { Profile } from '../lib/supabase';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authAPI, usersAPI, setAccessToken, clearAccessToken, getAccessToken } from '../lib/api';
+
+interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  role: 'super_admin' | 'admin' | 'coordinator';
+  zone_geographique: string | null;
+  specialite: string | null;
+  is_active: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
-  profile: Profile | null;
+  profile: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -14,34 +25,64 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const mockProfile: Profile = {
-    id: 'mock-id',
-    email: 'admin@sps.fr',
-    first_name: 'Admin',
-    last_name: 'SPS',
-    phone: null,
-    role: 'super_admin',
-    zone_geographique: null,
-    specialite: null,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = getAccessToken();
+    if (token) {
+      try {
+        const profileData = await usersAPI.getProfile();
+        setUser(profileData);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        clearAccessToken();
+      }
+    }
+    setLoading(false);
+  };
+
+  const signIn = async (email: string, password: string): Promise<{ error: Error | null }> => {
+    try {
+      const response = await authAPI.login(email, password);
+      setAccessToken(response.access_token);
+      const profileData = await usersAPI.getProfile();
+      setUser(profileData);
+      return { error: null };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error: error as Error };
+    }
+  };
+
+  const signOut = async () => {
+    clearAccessToken();
+    setUser(null);
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const profileData = await usersAPI.getProfile();
+      setUser(profileData);
+    } catch (error) {
+      console.error('Refresh profile error:', error);
+    }
   };
 
   const value: AuthContextType = {
-    user: null,
-    profile: mockProfile,
-    loading: false,
-    signIn: async () => ({ error: null }),
-    signOut: async () => {},
-    refreshProfile: async () => {},
+    user,
+    profile: user,
+    loading,
+    signIn,
+    signOut,
+    refreshProfile,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
