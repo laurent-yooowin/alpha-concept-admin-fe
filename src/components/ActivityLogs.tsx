@@ -27,14 +27,14 @@ export default function ActivityLogs() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
 
-  const isSuperAdmin = profile?.role === 'super_admin';
+  const isAdmin = profile?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isAdmin) {
       fetchLogs();
       fetchUserProfiles();
     }
-  }, [isSuperAdmin]);
+  }, [isAdmin]);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -111,7 +111,7 @@ export default function ActivityLogs() {
     return matchesSearch && matchesAction;
   });
 
-  if (!isSuperAdmin) {
+  if (!isAdmin) {
     return (
       <div className="text-center py-12">
         <p className="text-slate-600">Accès réservé aux Super Admins</p>

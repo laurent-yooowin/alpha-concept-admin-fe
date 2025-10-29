@@ -7,7 +7,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone: string | null;
-  role: 'super_admin' | 'admin' | 'coordinator';
+  role: 'ROLE_USER' | 'ROLE_ADMIN' | 'ROLE_SUPER_ADMIN';
   zone_geographique: string | null;
   specialite: string | null;
   is_active: boolean;

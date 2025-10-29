@@ -36,7 +36,7 @@ export default function UserManagement() {
     specialite: '',
   });
 
-  const isSuperAdmin = currentUser?.role === 'super_admin';
+  const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
     fetchUsers();
@@ -55,7 +55,7 @@ export default function UserManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
+    if (!isAdmin) return;
 
     try {
       await usersAPI.create({
@@ -81,7 +81,7 @@ export default function UserManagement() {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser || !isSuperAdmin) return;
+    if (!editingUser || !isAdmin) return;
 
     try {
       await usersAPI.update(editingUser.id, {
@@ -104,7 +104,7 @@ export default function UserManagement() {
   };
 
   const toggleUserStatus = async (user: User) => {
-    if (!isSuperAdmin) return;
+    if (!isAdmin) return;
 
     try {
       await usersAPI.update(user.id, {
@@ -184,7 +184,7 @@ export default function UserManagement() {
           <h1 className="text-3xl font-bold text-slate-900">Gestion des utilisateurs</h1>
           <p className="text-slate-600 mt-1">{users.length} utilisateur(s) au total</p>
         </div>
-        {isSuperAdmin && (
+        {isAdmin && (
           <button
             onClick={() => {
               setEditingUser(null);
@@ -235,7 +235,7 @@ export default function UserManagement() {
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Rôle</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Zone / Spécialité</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Statut</th>
-                {isSuperAdmin && (
+                {isAdmin && (
                   <th className="text-right px-6 py-3 text-sm font-semibold text-slate-900">Actions</th>
                 )}
               </tr>
@@ -276,7 +276,7 @@ export default function UserManagement() {
                       {user.is_active ? 'Actif' : 'Inactif'}
                     </span>
                   </td>
-                  {isSuperAdmin && (
+                  {isAdmin && (
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button

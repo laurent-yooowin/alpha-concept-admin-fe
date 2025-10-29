@@ -25,8 +25,8 @@ export default function Layout() {
     }
   }, [user, navigate]);
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
-  const isSuperAdmin = profile?.role === 'super_admin';
+  const isAdmin = profile?.role === "ROLE_ADMIN" || profile?.role === 'ROLE_SUPER_ADMIN';
+  // const isSuperAdmin = profile?.role === 'super_admin';
 
   const navigation = [
     { path: '/dashboard', name: 'Tableau de bord', icon: LayoutDashboard, show: true },
@@ -34,7 +34,7 @@ export default function Layout() {
     { path: '/dispatch', name: 'Attribution', icon: Send, show: isAdmin },
     { path: '/reports', name: 'Rapports', icon: FileText, show: true },
     { path: '/users', name: 'Utilisateurs', icon: Users, show: isAdmin },
-    { path: '/logs', name: 'Logs d\'activité', icon: Activity, show: isSuperAdmin },
+    { path: '/logs', name: 'Logs d\'activité', icon: Activity, show: isAdmin },
   ];
 
   const handleSignOut = async () => {
