@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react';
-import { supabase, ActivityLog } from '../lib/supabase';
+import { activityLogsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Activity, Search, Calendar, User, Filter } from 'lucide-react';
+
+interface ActivityLog {
+  id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: any;
+  created_at: string;
+}
+
+interface UserProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
 
 export default function ActivityLogs() {
   const { profile } = useAuth();
@@ -9,7 +25,7 @@ export default function ActivityLogs() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
-  const [userProfiles, setUserProfiles] = useState<Record<string, { first_name: string; last_name: string }>>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
 
   const isSuperAdmin = profile?.role === 'super_admin';
 
@@ -22,34 +38,29 @@ export default function ActivityLogs() {
 
   const fetchLogs = async () => {
     setLoading(true);
-
-    const { data, error } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
-
-    if (!error && data) {
+    try {
+      const data = await activityLogsAPI.getAll();
       setLogs(data);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
     }
-
     setLoading(false);
   };
 
   const fetchUserProfiles = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name');
-
-    if (data) {
-      const profileMap: Record<string, { first_name: string; last_name: string }> = {};
-      data.forEach((profile) => {
-        profileMap[profile.id] = {
-          first_name: profile.first_name,
-          last_name: profile.last_name,
+    try {
+      const data = await usersAPI.getAll();
+      const profileMap: Record<string, UserProfile> = {};
+      data.forEach((user: any) => {
+        profileMap[user.id] = {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
         };
       });
       setUserProfiles(profileMap);
+    } catch (error) {
+      console.error('Error fetching user profiles:', error);
     }
   };
 
@@ -86,9 +97,9 @@ export default function ActivityLogs() {
   const uniqueActions = Array.from(new Set(logs.map(log => log.action)));
 
   const filteredLogs = logs.filter(log => {
-    const userName = log.user_id ?
-      `${userProfiles[log.user_id]?.first_name || ''} ${userProfiles[log.user_id]?.last_name || ''}` :
-      'Système';
+    const userName = log.user_id && userProfiles[log.user_id]
+      ? `${userProfiles[log.user_id].first_name} ${userProfiles[log.user_id].last_name}`
+      : 'Système';
 
     const matchesSearch =
       userName.toLowerCase().includes(searchTerm.toLowerCase()) ||

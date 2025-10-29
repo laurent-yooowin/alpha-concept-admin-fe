@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { dashboardAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
   BarChart3,
@@ -22,9 +22,21 @@ interface Stats {
   sentReports: number;
   totalCoordinators: number;
   avgProcessingTime: number;
-  monthlyMissions: { month: string; count: number }[];
-  coordinatorStats: { name: string; count: number }[];
-  statusBreakdown: { status: string; count: number }[];
+}
+
+interface MonthlyMission {
+  month: string;
+  count: number;
+}
+
+interface CoordinatorStat {
+  name: string;
+  count: number;
+}
+
+interface StatusBreakdown {
+  status: string;
+  count: number;
 }
 
 export default function Dashboard() {
@@ -39,10 +51,10 @@ export default function Dashboard() {
     sentReports: 0,
     totalCoordinators: 0,
     avgProcessingTime: 0,
-    monthlyMissions: [],
-    coordinatorStats: [],
-    statusBreakdown: [],
   });
+  const [monthlyMissions, setMonthlyMissions] = useState<MonthlyMission[]>([]);
+  const [coordinatorStats, setCoordinatorStats] = useState<CoordinatorStat[]>([]);
+  const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
@@ -55,97 +67,17 @@ export default function Dashboard() {
     setLoading(true);
 
     try {
-      const missionQuery = supabase.from('missions').select('*');
-      const reportQuery = supabase.from('rapports').select('*');
-      const coordinatorQuery = supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'coordinator')
-        .eq('is_active', true);
-
-      if (profile?.role === 'coordinator') {
-        missionQuery.eq('coordinator_id', profile.id);
-        reportQuery.eq('coordinator_id', profile.id);
-      }
-
-      const [missionsRes, reportsRes, coordinatorsRes] = await Promise.all([
-        missionQuery,
-        reportQuery,
-        coordinatorQuery,
+      const [statsData, monthlyData, coordinatorData, statusData] = await Promise.all([
+        dashboardAPI.getStats(),
+        dashboardAPI.getMonthlyMissions(),
+        isAdmin ? dashboardAPI.getCoordinatorStats() : Promise.resolve([]),
+        dashboardAPI.getStatusBreakdown(),
       ]);
 
-      const missions = missionsRes.data || [];
-      const reports = reportsRes.data || [];
-      const coordinators = coordinatorsRes.data || [];
-
-      const monthlyData: Record<string, number> = {};
-      missions.forEach((mission) => {
-        const date = new Date(mission.created_at);
-        const monthKey = date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' });
-        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
-      });
-
-      const monthlyMissions = Object.entries(monthlyData)
-        .map(([month, count]) => ({ month, count }))
-        .slice(-6);
-
-      const coordinatorData: Record<string, number> = {};
-      if (isAdmin) {
-        const { data: missionsWithCoord } = await supabase
-          .from('missions')
-          .select('coordinator_id, coordinator:profiles!missions_coordinator_id_fkey(first_name, last_name)')
-          .not('coordinator_id', 'is', null);
-
-        if (missionsWithCoord) {
-          missionsWithCoord.forEach((mission: any) => {
-            if (mission.coordinator) {
-              const name = `${mission.coordinator.first_name} ${mission.coordinator.last_name}`;
-              coordinatorData[name] = (coordinatorData[name] || 0) + 1;
-            }
-          });
-        }
-      }
-
-      const coordinatorStats = Object.entries(coordinatorData)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-
-      const statusData: Record<string, number> = {};
-      missions.forEach((mission) => {
-        statusData[mission.statut] = (statusData[mission.statut] || 0) + 1;
-      });
-
-      const statusBreakdown = Object.entries(statusData).map(([status, count]) => ({
-        status,
-        count,
-      }));
-
-      const completedReports = reports.filter((r) => r.statut === 'validated' || r.statut === 'sent_to_client');
-      let avgTime = 0;
-      if (completedReports.length > 0) {
-        const totalTime = completedReports.reduce((sum, report) => {
-          const created = new Date(report.created_at).getTime();
-          const validated = report.validated_at ? new Date(report.validated_at).getTime() : created;
-          return sum + (validated - created);
-        }, 0);
-        avgTime = Math.round(totalTime / completedReports.length / (1000 * 60 * 60 * 24));
-      }
-
-      setStats({
-        totalMissions: missions.length,
-        pendingMissions: missions.filter((m) => m.statut === 'pending' || m.statut === 'assigned').length,
-        completedMissions: missions.filter((m) => m.statut === 'completed').length,
-        totalReports: reports.length,
-        submittedReports: reports.filter((r) => r.statut === 'submitted').length,
-        validatedReports: reports.filter((r) => r.statut === 'validated').length,
-        sentReports: reports.filter((r) => r.statut === 'sent_to_client').length,
-        totalCoordinators: coordinators.length,
-        avgProcessingTime: avgTime,
-        monthlyMissions,
-        coordinatorStats,
-        statusBreakdown,
-      });
+      setStats(statsData);
+      setMonthlyMissions(monthlyData);
+      setCoordinatorStats(coordinatorData);
+      setStatusBreakdown(statusData);
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -250,9 +182,9 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold text-slate-900">Missions par mois</h2>
           </div>
 
-          {stats.monthlyMissions.length > 0 ? (
+          {monthlyMissions.length > 0 ? (
             <div className="space-y-4">
-              {stats.monthlyMissions.map((item, index) => (
+              {monthlyMissions.map((item, index) => (
                 <div key={index}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-slate-700">{item.month}</span>
@@ -262,7 +194,7 @@ export default function Dashboard() {
                     <div
                       className="bg-prosps-blue h-2 rounded-full transition-all"
                       style={{
-                        width: `${(item.count / Math.max(...stats.monthlyMissions.map((m) => m.count))) * 100}%`,
+                        width: `${(item.count / Math.max(...monthlyMissions.map((m) => m.count))) * 100}%`,
                       }}
                     />
                   </div>
@@ -282,9 +214,9 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold text-slate-900">Répartition par statut</h2>
           </div>
 
-          {stats.statusBreakdown.length > 0 ? (
+          {statusBreakdown.length > 0 ? (
             <div className="space-y-3">
-              {stats.statusBreakdown.map((item, index) => (
+              {statusBreakdown.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
@@ -301,7 +233,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {isAdmin && stats.coordinatorStats.length > 0 && (
+      {isAdmin && coordinatorStats.length > 0 && (
         <div className="bg-white p-6 rounded-xl border border-slate-200">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-slate-100 rounded-lg">
@@ -311,7 +243,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-4">
-            {stats.coordinatorStats.map((item, index) => (
+            {coordinatorStats.map((item, index) => (
               <div key={index} className="flex items-center gap-3">
                 <span className="flex items-center justify-center w-8 h-8 bg-prosps-blue text-white rounded-full text-sm font-bold flex-shrink-0">
                   {index + 1}
@@ -325,7 +257,7 @@ export default function Dashboard() {
                     <div
                       className="bg-prosps-blue h-2 rounded-full transition-all"
                       style={{
-                        width: `${(item.count / Math.max(...stats.coordinatorStats.map((c) => c.count))) * 100}%`,
+                        width: `${(item.count / Math.max(...coordinatorStats.map((c) => c.count))) * 100}%`,
                       }}
                     />
                   </div>

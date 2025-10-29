@@ -1,15 +1,30 @@
 import { useState, useEffect } from 'react';
-import { supabase, Rapport, Mission, Chantier, Client } from '../lib/supabase';
+import { reportsAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin } from 'lucide-react';
+import { Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin } from 'lucide-react';
+
+interface Report {
+  id: string;
+  mission_id: string;
+  chantier_nom: string;
+  chantier_ville: string;
+  client_nom: string;
+  contenu: string;
+  observations: string | null;
+  remarques_admin: string | null;
+  statut: string;
+  created_at: string;
+  validated_at: string | null;
+  sent_to_client_at: string | null;
+}
 
 export default function ReportManagement() {
   const { profile: currentUser } = useAuth();
-  const [reports, setReports] = useState<Rapport[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedReport, setSelectedReport] = useState<Rapport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [editedObservations, setEditedObservations] = useState('');
@@ -24,36 +39,16 @@ export default function ReportManagement() {
 
   const fetchReports = async () => {
     setLoading(true);
-
-    const query = supabase
-      .from('rapports')
-      .select(`
-        *,
-        missions (
-          *,
-          chantiers (
-            *,
-            clients (*)
-          )
-        ),
-        coordinator:profiles!rapports_coordinator_id_fkey (*)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (currentUser?.role === 'coordinator') {
-      query.eq('coordinator_id', currentUser.id);
-    }
-
-    const { data, error } = await query;
-
-    if (!error && data) {
+    try {
+      const data = await reportsAPI.getAll();
       setReports(data);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
     }
-
     setLoading(false);
   };
 
-  const openViewModal = (report: Rapport) => {
+  const openViewModal = (report: Report) => {
     setSelectedReport(report);
     setEditedContent(report.contenu);
     setEditedObservations(report.observations || '');
@@ -66,34 +61,12 @@ export default function ReportManagement() {
     if (!selectedReport || !isAdmin) return;
 
     try {
-      const { error } = await supabase
-        .from('rapports')
-        .update({
-          contenu: editedContent,
-          observations: editedObservations,
-          remarques_admin: adminRemarks,
-          statut: 'validated',
-          validated_by: currentUser?.id,
-          validated_at: new Date().toISOString(),
-        })
-        .eq('id', selectedReport.id);
-
-      if (error) throw error;
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'validate_report',
-        entity_type: 'rapport',
-        entity_id: selectedReport.id,
+      await reportsAPI.update(selectedReport.id, {
+        contenu: editedContent,
+        observations: editedObservations,
+        remarques_admin: adminRemarks,
+        statut: 'validated',
       });
-
-      const missionData = selectedReport.missions as Mission;
-      if (missionData) {
-        await supabase
-          .from('missions')
-          .update({ statut: 'completed' })
-          .eq('id', missionData.id);
-      }
 
       setShowViewModal(false);
       setSelectedReport(null);
@@ -108,21 +81,8 @@ export default function ReportManagement() {
     if (!selectedReport || !isAdmin) return;
 
     try {
-      const { error } = await supabase
-        .from('rapports')
-        .update({
-          statut: 'sent_to_client',
-          sent_to_client_at: new Date().toISOString(),
-        })
-        .eq('id', selectedReport.id);
-
-      if (error) throw error;
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'send_report_to_client',
-        entity_type: 'rapport',
-        entity_id: selectedReport.id,
+      await reportsAPI.update(selectedReport.id, {
+        statut: 'sent_to_client',
       });
 
       setShowViewModal(false);
@@ -139,22 +99,10 @@ export default function ReportManagement() {
     if (!selectedReport || !isAdmin) return;
 
     try {
-      const { error } = await supabase
-        .from('rapports')
-        .update({
-          contenu: editedContent,
-          observations: editedObservations,
-          remarques_admin: adminRemarks,
-        })
-        .eq('id', selectedReport.id);
-
-      if (error) throw error;
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'edit_report',
-        entity_type: 'rapport',
-        entity_id: selectedReport.id,
+      await reportsAPI.update(selectedReport.id, {
+        contenu: editedContent,
+        observations: editedObservations,
+        remarques_admin: adminRemarks,
       });
 
       setIsEditing(false);
@@ -167,13 +115,9 @@ export default function ReportManagement() {
   };
 
   const filteredReports = reports.filter(report => {
-    const missionData = report.missions as Mission & { chantiers?: Chantier & { clients?: Client } };
-    const chantierNom = missionData?.chantiers?.nom || '';
-    const clientNom = missionData?.chantiers?.clients?.nom || '';
-
     const matchesSearch =
-      chantierNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clientNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.chantier_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.client_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.contenu.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || report.statut === statusFilter;
@@ -252,50 +196,44 @@ export default function ReportManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredReports.map((report) => {
-                const missionData = report.missions as Mission & { chantiers?: Chantier & { clients?: Client } };
-                const chantier = missionData?.chantiers;
-                const client = chantier?.clients;
-
-                return (
-                  <tr key={report.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-slate-900">{chantier?.nom}</p>
-                        <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {chantier?.ville}
-                        </div>
+              {filteredReports.map((report) => (
+                <tr key={report.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="font-medium text-slate-900">{report.chantier_nom}</p>
+                      <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {report.chantier_ville}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-700">
-                      {client?.nom}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-slate-700">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(report.created_at).toLocaleDateString('fr-FR')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.statut)}`}>
-                        {getStatusLabel(report.statut)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openViewModal(report)}
-                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Voir"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-700">
+                    {report.client_nom}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1 text-sm text-slate-700">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(report.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.statut)}`}>
+                      {getStatusLabel(report.statut)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openViewModal(report)}
+                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        title="Voir"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -308,7 +246,7 @@ export default function ReportManagement() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">Rapport SPS</h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  {((selectedReport.missions as Mission)?.chantiers as Chantier)?.nom}
+                  {selectedReport.chantier_nom}
                 </p>
               </div>
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedReport.statut)}`}>
@@ -322,7 +260,7 @@ export default function ReportManagement() {
                   <div>
                     <p className="text-slate-600">Client</p>
                     <p className="font-medium text-slate-900">
-                      {(((selectedReport.missions as Mission)?.chantiers as Chantier & { clients?: Client })?.clients)?.nom}
+                      {selectedReport.client_nom}
                     </p>
                   </div>
                   <div>

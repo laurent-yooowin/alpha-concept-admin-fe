@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react';
-import { supabase, Mission, Chantier, Client, Profile } from '../lib/supabase';
+import { missionsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Upload, Search, Filter, Calendar, MapPin, User } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User } from 'lucide-react';
+
+interface Mission {
+  id: string;
+  chantier_nom: string;
+  chantier_ville: string;
+  client_nom: string;
+  date_debut: string;
+  date_fin: string;
+  statut: string;
+  coordinator_first_name?: string;
+  coordinator_last_name?: string;
+  consignes?: string;
+}
 
 export default function MissionManagement() {
   const { profile: currentUser } = useAuth();
   const [missions, setMissions] = useState<Mission[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [chantiers, setChantiers] = useState<Chantier[]>([]);
-  const [coordinators, setCoordinators] = useState<Profile[]>([]);
+  const [coordinators, setCoordinators] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showCSVModal, setShowCSVModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const [formData, setFormData] = useState({
-    client_id: '',
+    client_nom: '',
     chantier_nom: '',
     chantier_adresse: '',
     chantier_ville: '',
@@ -28,8 +38,6 @@ export default function MissionManagement() {
     coordinator_id: '',
   });
 
-  const [csvData, setCSVData] = useState('');
-
   const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
   useEffect(() => {
@@ -38,35 +46,17 @@ export default function MissionManagement() {
 
   const fetchData = async () => {
     setLoading(true);
+    try {
+      const [missionsData, usersData] = await Promise.all([
+        missionsAPI.getAll(),
+        usersAPI.getAll(),
+      ]);
 
-    const missionsQuery = supabase
-      .from('missions')
-      .select(`
-        *,
-        chantiers (
-          *,
-          clients (*)
-        ),
-        coordinator:profiles!missions_coordinator_id_fkey (*)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (currentUser?.role === 'coordinator') {
-      missionsQuery.eq('coordinator_id', currentUser.id);
+      setMissions(missionsData);
+      setCoordinators(usersData.filter((u: any) => u.role === 'coordinator' && u.is_active));
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
-
-    const [missionsRes, clientsRes, chantiersRes, coordinatorsRes] = await Promise.all([
-      missionsQuery,
-      supabase.from('clients').select('*').order('nom'),
-      supabase.from('chantiers').select('*, clients(*)').order('nom'),
-      supabase.from('profiles').select('*').eq('role', 'coordinator').eq('is_active', true),
-    ]);
-
-    if (missionsRes.data) setMissions(missionsRes.data);
-    if (clientsRes.data) setClients(clientsRes.data);
-    if (chantiersRes.data) setChantiers(chantiersRes.data);
-    if (coordinatorsRes.data) setCoordinators(coordinatorsRes.data);
-
     setLoading(false);
   };
 
@@ -75,53 +65,17 @@ export default function MissionManagement() {
     if (!isAdmin) return;
 
     try {
-      let chantierId = '';
-
-      const existingChantier = chantiers.find(
-        c => c.client_id === formData.client_id &&
-             c.nom === formData.chantier_nom &&
-             c.adresse === formData.chantier_adresse
-      );
-
-      if (existingChantier) {
-        chantierId = existingChantier.id;
-      } else {
-        const { data: newChantier, error: chantierError } = await supabase
-          .from('chantiers')
-          .insert({
-            client_id: formData.client_id,
-            nom: formData.chantier_nom,
-            adresse: formData.chantier_adresse,
-            ville: formData.chantier_ville,
-            code_postal: formData.chantier_code_postal || null,
-            reference_interne: formData.reference_interne || null,
-          })
-          .select()
-          .single();
-
-        if (chantierError) throw chantierError;
-        chantierId = newChantier.id;
-      }
-
-      const { error: missionError } = await supabase
-        .from('missions')
-        .insert({
-          chantier_id: chantierId,
-          coordinator_id: formData.coordinator_id || null,
-          date_debut: formData.date_debut,
-          date_fin: formData.date_fin,
-          statut: formData.coordinator_id ? 'assigned' : 'pending',
-          consignes: formData.consignes || null,
-          created_by: currentUser?.id,
-        });
-
-      if (missionError) throw missionError;
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'create_mission',
-        entity_type: 'mission',
-        details: { chantier: formData.chantier_nom },
+      await missionsAPI.create({
+        client_nom: formData.client_nom,
+        chantier_nom: formData.chantier_nom,
+        chantier_adresse: formData.chantier_adresse,
+        chantier_ville: formData.chantier_ville,
+        chantier_code_postal: formData.chantier_code_postal || null,
+        reference_interne: formData.reference_interne || null,
+        date_debut: formData.date_debut,
+        date_fin: formData.date_fin,
+        consignes: formData.consignes || null,
+        coordinator_id: formData.coordinator_id || null,
       });
 
       setShowModal(false);
@@ -133,89 +87,9 @@ export default function MissionManagement() {
     }
   };
 
-  const handleCSVImport = async () => {
-    if (!isAdmin || !csvData.trim()) return;
-
-    try {
-      const lines = csvData.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const row: Record<string, string> = {};
-        headers.forEach((h, idx) => {
-          row[h] = values[idx] || '';
-        });
-
-        let clientId = '';
-        const existingClient = clients.find(c => c.nom.toLowerCase() === row.client?.toLowerCase());
-
-        if (existingClient) {
-          clientId = existingClient.id;
-        } else {
-          const { data: newClient, error: clientError } = await supabase
-            .from('clients')
-            .insert({
-              nom: row.client || 'Client inconnu',
-              email: row.client_email || null,
-            })
-            .select()
-            .single();
-
-          if (clientError) throw clientError;
-          clientId = newClient.id;
-        }
-
-        const { data: newChantier, error: chantierError } = await supabase
-          .from('chantiers')
-          .insert({
-            client_id: clientId,
-            nom: row.chantier || 'Chantier',
-            adresse: row.adresse || '',
-            ville: row.ville || '',
-            code_postal: row.code_postal || null,
-            reference_interne: row.reference || null,
-          })
-          .select()
-          .single();
-
-        if (chantierError) throw chantierError;
-
-        const coordinatorEmail = row.coordonnateur?.toLowerCase();
-        const coordinator = coordinatorEmail ?
-          coordinators.find(c => c.email.toLowerCase() === coordinatorEmail) : null;
-
-        await supabase.from('missions').insert({
-          chantier_id: newChantier.id,
-          coordinator_id: coordinator?.id || null,
-          date_debut: row.date_debut || new Date().toISOString().split('T')[0],
-          date_fin: row.date_fin || new Date().toISOString().split('T')[0],
-          statut: coordinator ? 'assigned' : 'pending',
-          consignes: row.consignes || null,
-          created_by: currentUser?.id,
-        });
-      }
-
-      await supabase.from('activity_logs').insert({
-        user_id: currentUser?.id,
-        action: 'import_missions_csv',
-        entity_type: 'mission',
-        details: { count: lines.length - 1 },
-      });
-
-      setShowCSVModal(false);
-      setCSVData('');
-      fetchData();
-      alert(`${lines.length - 1} mission(s) importée(s) avec succès`);
-    } catch (error) {
-      console.error('Error importing CSV:', error);
-      alert('Erreur lors de l\'import CSV');
-    }
-  };
-
   const resetForm = () => {
     setFormData({
-      client_id: '',
+      client_nom: '',
       chantier_nom: '',
       chantier_adresse: '',
       chantier_ville: '',
@@ -229,11 +103,10 @@ export default function MissionManagement() {
   };
 
   const filteredMissions = missions.filter(mission => {
-    const chantierData = mission.chantiers as Chantier & { clients?: Client };
     const matchesSearch =
-      chantierData?.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      chantierData?.clients?.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      chantierData?.ville?.toLowerCase().includes(searchTerm.toLowerCase());
+      mission.chantier_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      mission.client_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      mission.chantier_ville?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || mission.statut === statusFilter;
 
@@ -276,25 +149,16 @@ export default function MissionManagement() {
           <p className="text-slate-600 mt-1">{missions.length} mission(s) au total</p>
         </div>
         {isAdmin && (
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowCSVModal(true)}
-              className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <Upload className="w-5 h-5" />
-              Import CSV
-            </button>
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Nouvelle mission
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Nouvelle mission
+          </button>
         )}
       </div>
 
@@ -340,50 +204,45 @@ export default function MissionManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredMissions.map((mission) => {
-                const chantierData = mission.chantiers as Chantier & { clients?: Client };
-                const coordinatorData = mission.coordinator as Profile | undefined;
-
-                return (
-                  <tr key={mission.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-slate-900">{chantierData?.nom}</p>
-                        <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {chantierData?.ville}
-                        </div>
+              {filteredMissions.map((mission) => (
+                <tr key={mission.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="font-medium text-slate-900">{mission.chantier_nom}</p>
+                      <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {mission.chantier_ville}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-700">
-                      {chantierData?.clients?.nom}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-slate-700">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(mission.date_debut).toLocaleDateString('fr-FR')} - {new Date(mission.date_fin).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-700">
+                    {mission.client_nom}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1 text-sm text-slate-700">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(mission.date_debut).toLocaleDateString('fr-FR')} - {new Date(mission.date_fin).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {mission.coordinator_first_name ? (
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-700">
+                          {mission.coordinator_first_name} {mission.coordinator_last_name}
+                        </span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {coordinatorData ? (
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-700">
-                            {coordinatorData.first_name} {coordinatorData.last_name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-400">Non affecté</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.statut)}`}>
-                        {getStatusLabel(mission.statut)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                    ) : (
+                      <span className="text-sm text-slate-400">Non affecté</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.statut)}`}>
+                      {getStatusLabel(mission.statut)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -398,18 +257,14 @@ export default function MissionManagement() {
 
             <form onSubmit={handleCreateMission} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Client</label>
-                <select
-                  value={formData.client_id}
-                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                <label className="block text-sm font-medium text-slate-700 mb-2">Nom du client</label>
+                <input
+                  type="text"
+                  value={formData.client_nom}
+                  onChange={(e) => setFormData({ ...formData, client_nom: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   required
-                >
-                  <option value="">Sélectionner un client</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.nom}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -532,48 +387,6 @@ export default function MissionManagement() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {showCSVModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-900">Import CSV</h2>
-              <p className="text-sm text-slate-600 mt-2">
-                Format attendu: client,chantier,adresse,ville,code_postal,date_debut,date_fin,reference,coordonnateur,consignes
-              </p>
-            </div>
-
-            <div className="p-6">
-              <textarea
-                value={csvData}
-                onChange={(e) => setCSVData(e.target.value)}
-                rows={12}
-                placeholder="Collez vos données CSV ici..."
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none font-mono text-sm"
-              />
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCSVModal(false);
-                    setCSVData('');
-                  }}
-                  className="flex-1 px-6 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleCSVImport}
-                  className="flex-1 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"
-                >
-                  Importer
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
