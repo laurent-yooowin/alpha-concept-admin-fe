@@ -57,7 +57,7 @@ export default function Dashboard() {
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  const isAdmin = profile?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
     fetchStats();

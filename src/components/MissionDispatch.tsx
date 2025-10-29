@@ -33,7 +33,7 @@ export default function MissionDispatch() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedCoordinator, setSelectedCoordinator] = useState('');
 
-  const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
     if (isAdmin) {
@@ -56,7 +56,7 @@ export default function MissionDispatch() {
       setMissions(pendingMissions);
 
       const activeCoordinators = usersData.filter(
-        (u: any) => u.role === 'coordinator' && u.is_active
+        (u: any) => u.role === 'ROLE_USER' && u.is_active
       );
       setCoordinators(activeCoordinators);
     } catch (error) {

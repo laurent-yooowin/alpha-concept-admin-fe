@@ -38,7 +38,7 @@ export default function MissionManagement() {
     coordinator_id: '',
   });
 
-  const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
     fetchData();
@@ -53,7 +53,7 @@ export default function MissionManagement() {
       ]);
 
       setMissions(missionsData);
-      setCoordinators(usersData.filter((u: any) => u.role === 'coordinator' && u.is_active));
+      setCoordinators(usersData.filter((u: any) => u.role === 'ROLE_USER' && u.is_active));
     } catch (error) {
       console.error('Error fetching data:', error);
     }

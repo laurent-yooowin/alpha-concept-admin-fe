@@ -9,7 +9,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone: string | null;
-  role: 'super_admin' | 'admin' | 'coordinator';
+  role: 'ROLE_ADMIN' | 'ROLE_USER';
   zone_geographique: string | null;
   specialite: string | null;
   is_active: boolean;
@@ -31,7 +31,7 @@ export default function UserManagement() {
     first_name: '',
     last_name: '',
     phone: '',
-    role: 'coordinator' as 'super_admin' | 'admin' | 'coordinator',
+    role: 'ROLE_USER' as 'ROLE_ADMIN' | 'ROLE_USER',
     zone_geographique: '',
     specialite: '',
   });
@@ -123,7 +123,7 @@ export default function UserManagement() {
       first_name: '',
       last_name: '',
       phone: '',
-      role: 'coordinator',
+      role: 'ROLE_USER',
       zone_geographique: '',
       specialite: '',
     });
@@ -157,18 +157,16 @@ export default function UserManagement() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'super_admin': return 'bg-rose-100 text-rose-700 border-rose-200';
-      case 'admin': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'coordinator': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'ROLE_ADMIN': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'ROLE_USER': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'super_admin': return 'Super Admin';
-      case 'admin': return 'Admin';
-      case 'coordinator': return 'Coordonnateur';
+      case 'ROLE_ADMIN': return 'Administrateur';
+      case 'ROLE_USER': return 'Coordonnateur';
       default: return role;
     }
   };
@@ -219,9 +217,8 @@ export default function UserManagement() {
               className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none appearance-none bg-white"
             >
               <option value="all">Tous les rôles</option>
-              <option value="super_admin">Super Admin</option>
-              <option value="admin">Admin</option>
-              <option value="coordinator">Coordonnateur</option>
+              <option value="ROLE_ADMIN">Administrateur</option>
+              <option value="ROLE_USER">Coordonnateur</option>
             </select>
           </div>
         </div>
@@ -384,9 +381,8 @@ export default function UserManagement() {
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
                   required
                 >
-                  <option value="coordinator">Coordonnateur</option>
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
+                  <option value="ROLE_USER">Coordonnateur</option>
+                  <option value="ROLE_ADMIN">Administrateur</option>
                 </select>
               </div>
 

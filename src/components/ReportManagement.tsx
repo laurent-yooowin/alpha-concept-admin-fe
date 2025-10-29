@@ -31,7 +31,7 @@ export default function ReportManagement() {
   const [adminRemarks, setAdminRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
     fetchReports();

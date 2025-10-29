@@ -25,8 +25,7 @@ export default function Layout() {
     }
   }, [user, navigate]);
 
-  const isAdmin = profile?.role === "ROLE_ADMIN" || profile?.role === 'ROLE_SUPER_ADMIN';
-  // const isSuperAdmin = profile?.role === 'super_admin';
+  const isAdmin = profile?.role === 'ROLE_ADMIN';
 
   const navigation = [
     { path: '/dashboard', name: 'Tableau de bord', icon: LayoutDashboard, show: true },
@@ -108,7 +107,7 @@ export default function Layout() {
                 {profile.first_name} {profile.last_name}
               </p>
               <p className="text-xs text-white/70 mt-1">
-                {profile.role === 'super_admin' ? 'Super Admin' : profile.role === 'admin' ? 'Admin' : 'Coordonnateur'}
+                {profile.role === 'ROLE_ADMIN' ? 'Administrateur' : 'Coordonnateur'}
               </p>
             </div>
           )}
