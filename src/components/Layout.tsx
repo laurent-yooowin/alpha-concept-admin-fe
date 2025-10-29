@@ -1,4 +1,6 @@
-import { ReactNode, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard,
   Users,
@@ -6,25 +8,43 @@ import {
   FileText,
   Menu,
   X,
-  Send
+  Send,
+  Activity,
+  LogOut,
 } from 'lucide-react';
 
-interface LayoutProps {
-  children: ReactNode;
-  currentPage: string;
-  onNavigate: (page: string) => void;
-}
-
-export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+export default function Layout() {
+  const { user, profile, signOut } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  const isSuperAdmin = profile?.role === 'super_admin';
+
   const navigation = [
-    { id: 'dashboard', name: 'Tableau de bord', icon: LayoutDashboard },
-    { id: 'missions', name: 'Missions', icon: Briefcase },
-    { id: 'dispatch', name: 'Attribution', icon: Send },
-    { id: 'reports', name: 'Rapports', icon: FileText },
-    { id: 'users', name: 'Utilisateurs', icon: Users },
+    { path: '/dashboard', name: 'Tableau de bord', icon: LayoutDashboard, show: true },
+    { path: '/missions', name: 'Missions', icon: Briefcase, show: true },
+    { path: '/dispatch', name: 'Attribution', icon: Send, show: isAdmin },
+    { path: '/reports', name: 'Rapports', icon: FileText, show: true },
+    { path: '/users', name: 'Utilisateurs', icon: Users, show: isAdmin },
+    { path: '/logs', name: 'Logs d\'activité', icon: Activity, show: isSuperAdmin },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen relative">
@@ -36,6 +56,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
       >
         <div className="absolute inset-0 bg-white/90 backdrop-blur-sm"></div>
       </div>
+
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50">
         <div className="flex items-center gap-3">
           <img src="/logo admin.jpg" alt="PROSPS" className="h-8" />
@@ -59,17 +80,15 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         </div>
 
         <nav className="p-4 space-y-1">
-          {navigation.map((item) => {
+          {navigation.filter(item => item.show).map((item) => {
             const Icon = item.icon;
-            const isActive = currentPage === item.id;
+            const isActive = location.pathname === item.path;
             return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onNavigate(item.id);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-white text-prosps-blue'
                     : 'text-white hover:bg-white/10'
@@ -77,16 +96,29 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.name}</span>
-              </button>
+              </Link>
             );
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20">
-          <div className="px-4 py-3 bg-white/10 rounded-lg text-center">
-            <p className="text-sm font-medium text-white">Mode Administration</p>
-            <p className="text-xs text-white/70 mt-1">Accès complet</p>
-          </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20 space-y-3">
+          {profile && (
+            <div className="px-4 py-3 bg-white/10 rounded-lg">
+              <p className="text-sm font-medium text-white">
+                {profile.first_name} {profile.last_name}
+              </p>
+              <p className="text-xs text-white/70 mt-1">
+                {profile.role === 'super_admin' ? 'Super Admin' : profile.role === 'admin' ? 'Admin' : 'Coordonnateur'}
+              </p>
+            </div>
+          )}
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Déconnexion</span>
+          </button>
         </div>
       </aside>
 
@@ -99,7 +131,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 relative z-10">
         <div className="p-6 lg:p-8">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>
