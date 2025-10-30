@@ -85,13 +85,12 @@ export default function MissionManagement() {
         client: formData.client,
         title: formData.title,
         chantier_adresse: formData.chantier_adresse,
-        address: formData.address,
-        chantier_code_postal: formData.chantier_code_postal || null,
+        address: formData.address + ', ' + (formData.chantier_code_postal || ''),
         reference_interne: formData.reference_interne || null,
         date: formData.date,
-        date_fin: formData.date_fin,
-        consignes: formData.consignes || null,
-        coordinator_id: formData.coordinator_id || null,
+        // date_fin: formData.date_fin,
+        description: formData.consignes || null,
+        user_id: formData.coordinator_id || null,
       });
 
       setShowModal(false);

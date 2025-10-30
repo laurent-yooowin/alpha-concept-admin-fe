@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { missionsAPI, reportsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin } from 'lucide-react';
-import { generatePdfService, generateReportPDF } from '../services/generatePdfService';
+import { generatePdfService } from '../services/generatePdfService';
 import { visitService } from '../services/visitService';
+import Swal from 'sweetalert2';
 
 interface Report {
   id: string;
@@ -24,6 +25,7 @@ interface Report {
   sentToClientAt: string | null;
   header: string | null;
   footer: string | null;
+  contactEmail: string | null;
   conformityPercentage: number | null;
 }
 
@@ -43,6 +45,8 @@ export default function ReportManagement() {
   const [adminRemarks, setAdminRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
+  const context = useAuth();
+
   const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
@@ -52,36 +56,36 @@ export default function ReportManagement() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const [reportData, missionsData] = await Promise.all([
-        reportsAPI.getAll(),
-        missionsAPI.getAll(),
+      const [reportData] = await Promise.all([
+        reportsAPI.getAll()
       ]);
 
       reportData.map((report: Report) => {
-        report.createdAt = new Date(report.createdAt).toString();
+        report.createdAt = new Date(report.createdAt).toLocaleString('fr-FR');
 
         if (report.updatedAt) {
-          report.updatedAt = new Date(report.updatedAt).toString();
+          report.updatedAt = new Date(report.updatedAt).toLocaleString('fr-FR');
         }
 
         if (report.validatedAt) {
-          report.validatedAt = new Date(report.validatedAt).toString();
+          report.validatedAt = new Date(report.validatedAt).toLocaleString('fr-FR');
         }
 
         if (report.sentAt) {
-          report.sentAt = new Date(report.sentAt).toString();
+          report.sentAt = new Date(report.sentAt).toLocaleString('fr-FR');
         }
 
         if (report.sentToClientAt) {
-          report.sentToClientAt = new Date(report.sentToClientAt).toString();
+          report.sentToClientAt = new Date(report.sentToClientAt).toLocaleString('fr-FR');
         }
 
-        const mission = missionsData.find((m: any) => m.id === report.missionId);
+        const mission: any = report.mission;
         if (mission) {
           report.title = mission.title;
           report.address = mission.address;
           report.client = mission.client;
           report.mission = mission.title;
+          report.contactEmail = mission.contactEmail;
           // const clientUser = usersData.find((u: any) => u.id === mission.client_id);
           // report.client = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : 'Inconnu';
         }
@@ -182,16 +186,94 @@ export default function ReportManagement() {
         photos: photos,
       };
 
-      const pdf = await generatePdfService.generateReportPDF(pdfData);
-      
-      await reportsAPI.update(selectedReport.id, {
-        status: 'envoye_au_client',
+      const pdfHtml = await generatePdfService.generateReportPDF(pdfData);
+
+      const confirm = await Swal.fire({
+        title: 'Confirmer l’envoi du rapport',
+        text: `Voulez-vous vraiment envoyer le rapport PDF au client ${pdfData.client} ?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Oui, envoyer',
+        cancelButtonText: 'Annuler',
       });
+
+      if (!confirm.isConfirmed) return;
+
+      try {
+        setLoading(true);
+
+        const resp = await generatePdfService.generateWebPDFBase64(pdfHtml || '', `${pdfData.title}.pdf`);
+        if (!resp) {
+          Swal.fire({
+            title: 'Erreur',
+            text: 'Échec de l’envoi du mail.',
+            icon: 'error',
+          });
+          return;
+        }
+
+        const message = `
+          Bonjour ${pdfData.client},
+
+          Veuillez trouver ci-joint le rapport CSPS concernant la mission ${pdfData.mission} réalisée le ${pdfData.date}.
+
+          Nous restons à votre disposition pour toute question ou précision complémentaire.
+
+          Cordialement,
+          Alpha concept.
+          ${context.profile?.firstName}
+          Mail: ${context.profile?.email}
+          Téléphone: ${context.profile?.phone}
+          Adresse: ${context.profile?.address}      
+        `;
+
+        const subject = `Rapport CSPS – ${pdfData.mission} – ${pdfData.date}`;
+
+        const pdfUrl = resp?.url;
+
+        const response = await generatePdfService.sendReportPDFByEmail(
+          selectedReport.contactEmail || '',
+          subject,
+          message,
+          '',
+          pdfUrl || '',
+          false,
+          `${pdfData.mission.replace(/\s+/g, '_')}_rapport_CSPS.pdf`
+        );
+
+        if (response.ok || response.success) {
+          Swal.fire({
+            title: 'Mail envoyé !',
+            text: `Le rapport PDF a bien été envoyé au client ${pdfData.client}.`,
+            icon: 'success',
+            confirmButtonText: 'OK',
+          });
+
+          await reportsAPI.update(selectedReport.id, {
+            status: 'envoye_au_client',
+            sentToClientAt: new Date().toISOString(),
+          });
+        } else {
+          Swal.fire({
+            title: 'Erreur',
+            text: 'Échec de l’envoi du mail.',
+            icon: 'error',
+          });
+        }
+      } catch (err: any) {
+        Swal.fire({
+          title: 'Erreur',
+          text: 'Échec de l’envoi du mail.',
+          icon: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
 
       setShowViewModal(false);
       setSelectedReport(null);
       fetchReports();
-      alert('Rapport envoyé au client avec succès');
+      // alert('Rapport envoyé au client avec succès');
     } catch (error) {
       console.error('Error sending report:', error);
       alert('Erreur lors de l\'envoi');

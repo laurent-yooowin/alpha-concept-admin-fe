@@ -4,6 +4,7 @@ import { authAPI, usersAPI, setAccessToken, clearAccessToken, getAccessToken } f
 interface User {
   id: string;
   email: string;
+  address: string;
   firstName: string;
   lastName: string;
   phone: string | null;

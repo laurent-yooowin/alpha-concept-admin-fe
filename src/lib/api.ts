@@ -22,6 +22,36 @@ export const clearAccessToken = () => {
   localStorage.removeItem('access_token');
 };
 
+export const apiUploadsRequest = async (endpoint: string, options: RequestInit = {}) => {
+  const token = getAccessToken();
+
+  const headers: HeadersInit = {
+    ...(options.headers || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    clearAccessToken();
+    window.location.href = '/';
+    throw new Error('Unauthorized');
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || 'Request failed');
+  }
+
+  return response.json();
+};
+
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAccessToken();
 

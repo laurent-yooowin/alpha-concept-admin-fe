@@ -1,4 +1,6 @@
+import { apiRequest, apiUploadsRequest } from "../lib/api";
 import { filesService } from "./filesService";
+import html2pdf from 'html2pdf.js';
 
 export const generatePdfService = {
 
@@ -460,14 +462,73 @@ export const generatePdfService = {
     return null;
   },
 
+  async generateWebPDFBase64(htmlContent: string, filename: string): Promise<Blob | null> {
+    try {
+      // Crée un élément temporaire pour le HTML
+      const element = document.createElement('div');
+      element.innerHTML = htmlContent;
+      document.body.appendChild(element);
+
+      // Options html2pdf
+      const options = {
+        margin: 10,
+        filename: 'report.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      };
+
+      // Générer le PDF en Blob
+      const pdfBlob: Blob = await html2pdf().set(options).from(element).outputPdf('blob');
+
+      // Supprimer l’élément temporaire
+      document.body.removeChild(element);
+
+      // Préparer le formData pour l’upload
+      const formData = new FormData();
+      formData.append('file', pdfBlob, filename);
+
+      // Appeler l’API upload
+      const response = await apiUploadsRequest('/upload/report-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      return response;
+    } catch (err) {
+      console.error('Erreur génération/upload PDF :', err);
+      throw err;
+    }
+  },
+
   async generateReportPDF(reportData) {
     try {
       const htmlContent = await this.generateHTMLContent(reportData);
-      return await this.generateWebPDF(htmlContent, reportData.title);
-
+      await this.generateWebPDF(htmlContent, reportData.title);
+      return htmlContent;
     } catch (error) {
       console.error('Error generating PDF:', error);
       return null;
     }
-  }
+  },
+
+  async sendReportPDFByEmail(email: string, subject: string, message: string, pdfContent: string, pdfUrl?: string, isHtmlContent?: boolean, fileName: string = 'report.pdf') {
+    const url = `/mail/send-report`;
+    const data = {
+      email: email,
+      pdfContent: pdfContent,
+      pdfUrl: pdfUrl,
+      subject: subject,
+      message: message,
+      isHtmlContent: isHtmlContent,
+      fileName: fileName,
+    };
+
+    return apiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+
 };
