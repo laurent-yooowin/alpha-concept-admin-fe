@@ -181,9 +181,11 @@ export default function ReportManagement() {
         footer: selectedReport.footer || '',
         photos: photos,
       };
-      await generatePdfService.generateReportPDF(pdfData);
+
+      const pdf = await generatePdfService.generateReportPDF(pdfData);
+      
       await reportsAPI.update(selectedReport.id, {
-        status: 'envoyee_au_client',
+        status: 'envoye_au_client',
       });
 
       setShowViewModal(false);

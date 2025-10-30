@@ -1,3 +1,4 @@
+import { filesService } from "./filesService";
 
 export const generatePdfService = {
 
@@ -45,18 +46,9 @@ export const generatePdfService = {
           try {
             // const fileUri = FileSystem.cacheDirectory + `temp_${Math.random()}.jpg`;
             // const { uri } = await FileSystem.downloadAsync(photo.s3Url, fileUri);
-            const pdfData = await fetch(photo.s3Url);
-            base64Img = await pdfData.blob().then(blob => {
-              return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const base64data = reader.result?.toString().split(',')[1] || '';
-                  resolve(base64data);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            });
+
+            const pdfData = await filesService.downloadFile(photo.s3Url, 'visits/photos/', true);
+            base64Img = pdfData.data?.base64;
 
             const riskColor = getRiskColor(photo.aiAnalysis?.riskLevel || 'moyen');
             const riskLabel = getRiskLabel(photo.aiAnalysis?.riskLevel || 'moyen');
