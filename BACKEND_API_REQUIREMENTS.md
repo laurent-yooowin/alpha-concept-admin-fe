@@ -78,7 +78,7 @@ Get mission count grouped by status
 ```json
 [
   {
-    "status": "string (pending|assigned|in_progress|completed|refused|cancelled)",
+    "status": "string (en_attente|planifiee|en_cours|terminee|refusee|annulee)",
     "count": number
   }
 ]

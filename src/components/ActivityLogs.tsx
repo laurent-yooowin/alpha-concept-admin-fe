@@ -15,17 +15,17 @@ interface ActivityLog {
 
 interface UserProfile {
   id: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
 }
 
 export default function ActivityLogs() {
   const { profile } = useAuth();
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [logs, setLogs] = useState < ActivityLog[] > ([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [actionFilter, setActionFilter] = useState<string>('all');
-  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
+  const [actionFilter, setActionFilter] = useState < string > ('all');
+  const [userProfiles, setUserProfiles] = useState < Record < string, UserProfile>> ({});
 
   const isAdmin = profile?.role === 'ROLE_ADMIN';
 
@@ -54,8 +54,8 @@ export default function ActivityLogs() {
       data.forEach((user: any) => {
         profileMap[user.id] = {
           id: user.id,
-          first_name: user.first_name,
-          last_name: user.last_name,
+          firstName: user.firstName,
+          lastName: user.lastName,
         };
       });
       setUserProfiles(profileMap);
@@ -98,7 +98,7 @@ export default function ActivityLogs() {
 
   const filteredLogs = logs.filter(log => {
     const userName = log.user_id && userProfiles[log.user_id]
-      ? `${userProfiles[log.user_id].first_name} ${userProfiles[log.user_id].last_name}`
+      ? `${userProfiles[log.user_id].firstName} ${userProfiles[log.user_id].lastName}`
       : 'Système';
 
     const matchesSearch =
@@ -171,7 +171,7 @@ export default function ActivityLogs() {
               {filteredLogs.map((log) => {
                 const userProfile = log.user_id ? userProfiles[log.user_id] : null;
                 const userName = userProfile
-                  ? `${userProfile.first_name} ${userProfile.last_name}`
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
                   : 'Système';
 
                 return (

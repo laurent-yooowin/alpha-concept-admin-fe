@@ -1,32 +1,44 @@
 import { useState, useEffect } from 'react';
-import { reportsAPI } from '../lib/api';
+import { missionsAPI, reportsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin } from 'lucide-react';
+import { generatePdfService, generateReportPDF } from '../services/generatePdfService';
+import { visitService } from '../services/visitService';
 
 interface Report {
   id: string;
-  mission_id: string;
-  chantier_nom: string;
-  chantier_ville: string;
-  client_nom: string;
-  contenu: string;
+  missionId: string;
+  mission: string;
+  visitId: string;
+  title: string;
+  address: string;
+  client: string;
+  content: string;
   observations: string | null;
-  remarques_admin: string | null;
-  statut: string;
-  created_at: string;
-  validated_at: string | null;
-  sent_to_client_at: string | null;
+  remarquesAdmin: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  validatedAt: string | null;
+  sentAt: string | null;
+  sentToClientAt: string | null;
+  header: string | null;
+  footer: string | null;
+  conformityPercentage: number | null;
 }
 
 export default function ReportManagement() {
   const { profile: currentUser } = useAuth();
-  const [reports, setReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState < Report[] > ([]);
+  const [filteredReports, setFilteredReports] = useState < Report[] > ([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [statusFilter, setStatusFilter] = useState < string > ('all');
+  const [selectedReport, setSelectedReport] = useState < Report | null > (null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [editedHeader, setEditedHeader] = useState('');
   const [editedContent, setEditedContent] = useState('');
+  const [editedFooter, setEditedFooter] = useState('');
   const [editedObservations, setEditedObservations] = useState('');
   const [adminRemarks, setAdminRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -40,8 +52,46 @@ export default function ReportManagement() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const data = await reportsAPI.getAll();
-      setReports(data);
+      const [reportData, missionsData] = await Promise.all([
+        reportsAPI.getAll(),
+        missionsAPI.getAll(),
+      ]);
+
+      reportData.map((report: Report) => {
+        report.createdAt = new Date(report.createdAt).toString();
+
+        if (report.updatedAt) {
+          report.updatedAt = new Date(report.updatedAt).toString();
+        }
+
+        if (report.validatedAt) {
+          report.validatedAt = new Date(report.validatedAt).toString();
+        }
+
+        if (report.sentAt) {
+          report.sentAt = new Date(report.sentAt).toString();
+        }
+
+        if (report.sentToClientAt) {
+          report.sentToClientAt = new Date(report.sentToClientAt).toString();
+        }
+
+        const mission = missionsData.find((m: any) => m.id === report.missionId);
+        if (mission) {
+          report.title = mission.title;
+          report.address = mission.address;
+          report.client = mission.client;
+          report.mission = mission.title;
+          // const clientUser = usersData.find((u: any) => u.id === mission.client_id);
+          // report.client = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : 'Inconnu';
+        }
+        // report.content = report.header + '\n' + report.content + '\n' + report.footer || '';
+
+        return report;
+      });
+
+      setReports(reportData);
+      setFilteredReports(reportData);
     } catch (error) {
       console.error('Error fetching reports:', error);
     }
@@ -50,9 +100,11 @@ export default function ReportManagement() {
 
   const openViewModal = (report: Report) => {
     setSelectedReport(report);
-    setEditedContent(report.contenu);
+    setEditedContent(report.content || '');
+    setEditedHeader(report.header || '');
+    setEditedFooter(report.footer || '');
     setEditedObservations(report.observations || '');
-    setAdminRemarks(report.remarques_admin || '');
+    setAdminRemarks(report.remarquesAdmin || '');
     setIsEditing(false);
     setShowViewModal(true);
   };
@@ -62,10 +114,10 @@ export default function ReportManagement() {
 
     try {
       await reportsAPI.update(selectedReport.id, {
-        contenu: editedContent,
+        content: editedContent,
         observations: editedObservations,
-        remarques_admin: adminRemarks,
-        statut: 'validated',
+        remarquesAdmin: adminRemarks,
+        status: 'valide',
       });
 
       setShowViewModal(false);
@@ -79,10 +131,59 @@ export default function ReportManagement() {
 
   const handleSendToClient = async () => {
     if (!selectedReport || !isAdmin) return;
-
+    let photos: any[] = [];
     try {
+      const visitResponse = await visitService.getVisit(selectedReport.visitId);
+      // console.log('visitResponse.data.photos >>> : ', visitResponse.data.photos);
+      if (visitResponse && visitResponse.photos) {
+        photos = visitResponse.photos
+          .map((photo: any) => {
+            const riskLevelMap: { [key: string]: 'low' | 'medium' | 'high' } = {
+              'faible': 'low',
+              'moyen': 'medium',
+              'eleve': 'high',
+              'low': 'low',
+              'medium': 'medium',
+              'high': 'high'
+            };
+
+            const observationText = photo.analysis?.observation || '';
+            const recommendationText = photo.analysis?.recommendation || '';
+
+            return {
+              id: photo.id || `photo-${Date.now()}-${Math.random()}`,
+              uri: photo.uri || photo.s3Url,
+              s3Url: photo.s3Url,
+              timestamp: new Date(photo.createdAt || Date.now()),
+              aiAnalysis: photo.analysis ? {
+                observations: observationText ? observationText.split('. ').filter((s: string) => s.length > 0) : [],
+                recommendations: recommendationText ? recommendationText.split('. ').filter((s: string) => s.length > 0) : [],
+                riskLevel: riskLevelMap[photo.analysis.riskLevel] || 'low',
+                confidence: Math.round((photo.analysis.confidence || 0) * 100)
+              } : undefined,
+              comment: photo.comment || '',
+              validated: photo.validated || true
+            };
+          });
+      }
+    } catch (error) {
+      console.log('Could not load visit photos:', error);
+    }
+    try {
+      const pdfData: any = {
+        title: selectedReport.title,
+        mission: selectedReport.mission,
+        client: selectedReport.client,
+        date: selectedReport.createdAt,
+        conformity: selectedReport.conformityPercentage,
+        header: selectedReport.header || '',
+        content: selectedReport.content || 'Contenu non disponible',
+        footer: selectedReport.footer || '',
+        photos: photos,
+      };
+      await generatePdfService.generateReportPDF(pdfData);
       await reportsAPI.update(selectedReport.id, {
-        statut: 'sent_to_client',
+        status: 'envoyee_au_client',
       });
 
       setShowViewModal(false);
@@ -100,9 +201,11 @@ export default function ReportManagement() {
 
     try {
       await reportsAPI.update(selectedReport.id, {
-        contenu: editedContent,
+        content: editedContent,
+        header: editedHeader,
+        footer: editedFooter,
         observations: editedObservations,
-        remarques_admin: adminRemarks,
+        remarquesAdmin: adminRemarks,
       });
 
       setIsEditing(false);
@@ -114,34 +217,45 @@ export default function ReportManagement() {
     }
   };
 
-  const filteredReports = reports.filter(report => {
-    const matchesSearch =
-      report.chantier_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.client_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.contenu.toLowerCase().includes(searchTerm.toLowerCase());
+  const filterReports = (status: string, term: string) => {
+    if (status === 'all' && term.trim() === '') {
+      setFilteredReports(reports);
+      return;
+    }
+    const reportsFilter = reports.filter(report => {
+      const matchesSearch =
+        report.title?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        report.client?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        report.address?.toLowerCase().includes(searchTerm?.toLowerCase());
+      // || report.content?.toLowerCase().includes(searchTerm?.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || report.statut === statusFilter;
+      const matchesStatus = status === 'all' || report.status === status;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+    const reportsCopy: Report[] = [];
+    Object.assign(reportsCopy, reportsFilter);
+    setFilteredReports(reportsCopy);
+  }
 
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case 'draft': return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'submitted': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'validated': return 'bg-green-100 text-green-700 border-green-200';
-      case 'sent_to_client': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'brouillon': return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'envoye': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'valide': return 'bg-green-100 text-green-700 border-green-200';
+      case 'envoye_au_client': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
-  const getStatusLabel = (statut: string) => {
-    switch (statut) {
-      case 'draft': return 'Brouillon';
-      case 'submitted': return 'Soumis';
-      case 'validated': return 'Validé';
-      case 'sent_to_client': return 'Envoyé au client';
-      default: return statut;
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'brouillon': return 'Brouillon';
+      case 'envoye': return 'Soumis';
+      case 'valide': return 'Validé';
+      case 'envoye_au_client': return 'Envoyé au client';
+      default: return status;
     }
   };
 
@@ -164,7 +278,7 @@ export default function ReportManagement() {
               type="text"
               placeholder="Rechercher par chantier, client, contenu..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); filterReports(statusFilter, e.target.value); }}
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
             />
           </div>
@@ -172,14 +286,14 @@ export default function ReportManagement() {
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); filterReports(e.target.value, searchTerm); }}
               className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none appearance-none bg-white"
             >
               <option value="all">Tous les statuts</option>
-              <option value="draft">Brouillon</option>
-              <option value="submitted">Soumis</option>
-              <option value="validated">Validé</option>
-              <option value="sent_to_client">Envoyé au client</option>
+              <option value="brouillon">Brouillon</option>
+              <option value="envoye">Soumis</option>
+              <option value="valide">Validé</option>
+              <option value="envoye_au_client">Envoyé au client</option>
             </select>
           </div>
         </div>
@@ -200,25 +314,25 @@ export default function ReportManagement() {
                 <tr key={report.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-medium text-slate-900">{report.chantier_nom}</p>
+                      <p className="font-medium text-slate-900">{report.title}</p>
                       <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
                         <MapPin className="w-3.5 h-3.5" />
-                        {report.chantier_ville}
+                        {report.address}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-700">
-                    {report.client_nom}
+                    {report.client}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1 text-sm text-slate-700">
                       <Calendar className="w-3.5 h-3.5" />
-                      {new Date(report.created_at).toLocaleDateString('fr-FR')}
+                      {new Date(report.createdAt).toLocaleDateString('fr-FR')}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.statut)}`}>
-                      {getStatusLabel(report.statut)}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
+                      {getStatusLabel(report.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -246,11 +360,11 @@ export default function ReportManagement() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">Rapport SPS</h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  {selectedReport.chantier_nom}
+                  {selectedReport.title}
                 </p>
               </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedReport.statut)}`}>
-                {getStatusLabel(selectedReport.statut)}
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedReport.status)}`}>
+                {getStatusLabel(selectedReport.status)}
               </span>
             </div>
 
@@ -260,13 +374,13 @@ export default function ReportManagement() {
                   <div>
                     <p className="text-slate-600">Client</p>
                     <p className="font-medium text-slate-900">
-                      {selectedReport.client_nom}
+                      {selectedReport.client}
                     </p>
                   </div>
                   <div>
                     <p className="text-slate-600">Date de création</p>
                     <p className="font-medium text-slate-900">
-                      {new Date(selectedReport.created_at).toLocaleDateString('fr-FR')}
+                      {new Date(selectedReport.createdAt).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
                 </div>
@@ -275,15 +389,34 @@ export default function ReportManagement() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Contenu du rapport</label>
                 {isEditing && isAdmin ? (
-                  <textarea
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    rows={10}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
-                  />
+                  <>
+                    <p className="mb-1 text-sm text-slate-500">En-tête</p>
+                    <textarea
+                      value={editedHeader}
+                      onChange={(e) => setEditedHeader(e.target.value)}
+                      rows={10}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                    <br />
+                    <p className="mb-1 text-sm text-slate-500">Contenu principal</p>
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      rows={20}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                    <br />
+                    <p className="mb-1 text-sm text-slate-500">Conclusion</p>
+                    <textarea
+                      value={editedFooter}
+                      onChange={(e) => setEditedFooter(e.target.value)}
+                      rows={10}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                  </>
                 ) : (
                   <div className="p-4 bg-slate-50 rounded-lg whitespace-pre-wrap text-slate-900">
-                    {editedContent}
+                    {editedHeader + '\n' + editedContent + '\n' + editedFooter}
                   </div>
                 )}
               </div>
@@ -323,18 +456,18 @@ export default function ReportManagement() {
                 </div>
               )}
 
-              {selectedReport.validated_at && (
+              {selectedReport.validatedAt && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-900">
-                    <strong>Validé le:</strong> {new Date(selectedReport.validated_at).toLocaleDateString('fr-FR')} à {new Date(selectedReport.validated_at).toLocaleTimeString('fr-FR')}
+                    <strong>Validé le:</strong> {new Date(selectedReport.validatedAt).toLocaleDateString('fr-FR')} à {new Date(selectedReport.validatedAt).toLocaleTimeString('fr-FR')}
                   </p>
                 </div>
               )}
 
-              {selectedReport.sent_to_client_at && (
+              {selectedReport.sentToClientAt && (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <p className="text-sm text-emerald-900">
-                    <strong>Envoyé au client le:</strong> {new Date(selectedReport.sent_to_client_at).toLocaleDateString('fr-FR')} à {new Date(selectedReport.sent_to_client_at).toLocaleTimeString('fr-FR')}
+                    <strong>Envoyé au client le:</strong> {new Date(selectedReport.sentToClientAt).toLocaleDateString('fr-FR')} à {new Date(selectedReport.sentAt).toLocaleTimeString('fr-FR')}
                   </p>
                 </div>
               )}
@@ -372,7 +505,7 @@ export default function ReportManagement() {
                     </>
                   ) : (
                     <>
-                      {selectedReport.statut !== 'sent_to_client' && (
+                      {selectedReport.status !== 'envoye_au_client' && (
                         <button
                           onClick={() => setIsEditing(true)}
                           className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-50 transition-colors font-medium"
@@ -382,7 +515,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.statut === 'submitted' && (
+                      {selectedReport.status === 'envoye' && (
                         <button
                           onClick={handleValidateReport}
                           className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -392,7 +525,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.statut === 'validated' && (
+                      {selectedReport.status === 'valide' && (
                         <button
                           onClick={handleSendToClient}
                           className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"

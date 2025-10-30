@@ -69,8 +69,8 @@ async function createAdmins() {
         password: passwords[i],
         email_confirm: true,
         user_metadata: {
-          first_name: firstNames[i],
-          last_name: lastNames[i],
+          firstName: firstNames[i],
+          lastName: lastNames[i],
         }
       });
 
@@ -93,13 +93,13 @@ async function createAdmins() {
         .insert({
           id: authData.user.id,
           email: emails[i],
-          first_name: firstNames[i],
-          last_name: lastNames[i],
+          firstName: firstNames[i],
+          lastName: lastNames[i],
           phone: phones[i] || null,
           role: 'admin',
           zone_geographique: zones[i] || null,
           specialite: specialites[i] || null,
-          is_active: true,
+          isActive: true,
         });
 
       if (profileError) {
@@ -116,7 +116,7 @@ async function createAdmins() {
     }
   }
 
-  console.log('\n✨ Admin creation process completed!');
+  console.log('\n✨ Admin creation process terminee!');
 }
 
 createAdmins();

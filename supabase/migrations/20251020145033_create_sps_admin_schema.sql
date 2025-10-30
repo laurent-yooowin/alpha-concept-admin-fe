@@ -31,7 +31,7 @@
   Ordres de mission SPS
   - Dates et détails
   - Attribution aux coordonnateurs
-  - Statuts multiples : pending, assigned, in_progress, completed, cancelled
+  - Statuts multiples : en_attente, planifiee, en_cours, terminee, annulee
   
   ### rapports
   Rapports SPS soumis par les coordonnateurs
@@ -81,13 +81,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text UNIQUE NOT NULL,
-  first_name text NOT NULL,
-  last_name text NOT NULL,
+  firstName text NOT NULL,
+  lastName text NOT NULL,
   phone text,
   role text NOT NULL CHECK (role IN ('super_admin', 'admin', 'coordinator')),
   zone_geographique text,
   specialite text,
-  is_active boolean DEFAULT true,
+  isActive boolean DEFAULT true,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS missions (
   coordinator_id uuid REFERENCES profiles(id) ON DELETE SET NULL,
   date_debut date NOT NULL,
   date_fin date NOT NULL,
-  statut text NOT NULL DEFAULT 'pending' CHECK (statut IN ('pending', 'assigned', 'refused', 'in_progress', 'completed', 'cancelled')),
+  statut text NOT NULL DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'planifiee', 'refusee', 'en_cours', 'terminee', 'annulee')),
   consignes text,
   remarques_admin text,
   created_by uuid REFERENCES profiles(id) ON DELETE SET NULL,
@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS missions (
 ALTER TABLE missions ENABLE ROW LEVEL SECURITY;
 
 -- Les coordinateurs peuvent voir leurs missions
-CREATE POLICY "Coordinators can view assigned missions"
+CREATE POLICY "Coordinators can view planifiee missions"
   ON missions FOR SELECT
   TO authenticated
   USING (
@@ -593,7 +593,7 @@ CREATE POLICY "Authenticated users can create logs"
 -- =====================================================
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
-CREATE INDEX IF NOT EXISTS idx_profiles_is_active ON profiles(is_active);
+CREATE INDEX IF NOT EXISTS idx_profiles_isActive ON profiles(isActive);
 CREATE INDEX IF NOT EXISTS idx_missions_coordinator ON missions(coordinator_id);
 CREATE INDEX IF NOT EXISTS idx_missions_statut ON missions(statut);
 CREATE INDEX IF NOT EXISTS idx_missions_dates ON missions(date_debut, date_fin);

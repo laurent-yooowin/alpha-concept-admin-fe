@@ -4,13 +4,13 @@ import { authAPI, usersAPI, setAccessToken, clearAccessToken, getAccessToken } f
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   phone: string | null;
   role: 'ROLE_USER' | 'ROLE_ADMIN';
   zone_geographique: string | null;
   specialite: string | null;
-  is_active: boolean;
+  isActive: boolean;
 }
 
 interface AuthContextType {
@@ -22,10 +22,10 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext < AuthContextType | undefined > (undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState < User | null > (null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -41,7 +41,7 @@ interface StatusBreakdown {
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const [stats, setStats] = useState<Stats>({
+  const [stats, setStats] = useState < Stats > ({
     totalMissions: 0,
     pendingMissions: 0,
     completedMissions: 0,
@@ -52,9 +52,9 @@ export default function Dashboard() {
     totalCoordinators: 0,
     avgProcessingTime: 0,
   });
-  const [monthlyMissions, setMonthlyMissions] = useState<MonthlyMission[]>([]);
-  const [coordinatorStats, setCoordinatorStats] = useState<CoordinatorStat[]>([]);
-  const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
+  const [monthlyMissions, setMonthlyMissions] = useState < MonthlyMission[] > ([]);
+  const [coordinatorStats, setCoordinatorStats] = useState < CoordinatorStat[] > ([]);
+  const [statusBreakdown, setStatusBreakdown] = useState < StatusBreakdown[] > ([]);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = profile?.role === 'ROLE_ADMIN';
@@ -87,24 +87,24 @@ export default function Dashboard() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: 'En attente',
-      assigned: 'Affectée',
-      in_progress: 'En cours',
-      completed: 'Terminée',
-      refused: 'Refusée',
-      cancelled: 'Annulée',
+      en_attente: 'En attente',
+      planifiee: 'Affectée',
+      en_cours: 'En cours',
+      terminee: 'Terminée',
+      refusee: 'Refusée',
+      annulee: 'Annulée',
     };
     return labels[status] || status;
   };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-slate-100 text-slate-700',
-      assigned: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-amber-100 text-amber-700',
-      completed: 'bg-green-100 text-green-700',
-      refused: 'bg-red-100 text-red-700',
-      cancelled: 'bg-slate-100 text-slate-700',
+      en_attente: 'bg-slate-100 text-slate-700',
+      planifiee: 'bg-blue-100 text-blue-700',
+      en_cours: 'bg-amber-100 text-amber-700',
+      terminee: 'bg-green-100 text-green-700',
+      refusee: 'bg-red-100 text-red-700',
+      annulee: 'bg-slate-100 text-slate-700',
     };
     return colors[status] || 'bg-slate-100 text-slate-700';
   };

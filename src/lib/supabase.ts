@@ -10,13 +10,13 @@ export type UserRole = 'ROLE_ADMIN' | 'ROLE_USER';
 export interface Profile {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   phone: string | null;
   role: UserRole;
   zone_geographique: string | null;
   specialite: string | null;
-  is_active: boolean;
+  isActive: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +46,7 @@ export interface Chantier {
   clients?: Client;
 }
 
-export type MissionStatut = 'pending' | 'assigned' | 'refused' | 'in_progress' | 'completed' | 'cancelled';
+export type MissionStatut = 'en_attente' | 'planifiee' | 'refusee' | 'en_cours' | 'terminee' | 'annulee';
 
 export interface Mission {
   id: string;

@@ -117,7 +117,7 @@ CREATE POLICY "Anyone can delete chantiers"
 -- MISSIONS
 -- =====================================================
 
-DROP POLICY IF EXISTS "Coordinators can view assigned missions" ON missions;
+DROP POLICY IF EXISTS "Coordinators can view planifiee missions" ON missions;
 DROP POLICY IF EXISTS "Admins can view all missions" ON missions;
 DROP POLICY IF EXISTS "Admins can create missions" ON missions;
 DROP POLICY IF EXISTS "Admins can update all missions" ON missions;

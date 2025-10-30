@@ -22,7 +22,7 @@ export const clearAccessToken = () => {
   localStorage.removeItem('access_token');
 };
 
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAccessToken();
 
   const headers: HeadersInit = {
@@ -148,7 +148,7 @@ export const missionsAPI = {
   },
 
   getAssignedUsers: async (id: string) => {
-    return apiRequest(`/missions/${id}/assigned-users`);
+    return apiRequest(`/missions/${id}/planifiee-users`);
   },
 
   deleteAssignedUser: async (missionId: string, userId: string) => {

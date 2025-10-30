@@ -19,17 +19,17 @@ interface Mission {
 
 interface Coordinator {
   id: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   zone_geographique?: string;
 }
 
 export default function MissionDispatch() {
   const { profile: currentUser } = useAuth();
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
+  const [missions, setMissions] = useState < Mission[] > ([]);
+  const [coordinators, setCoordinators] = useState < Coordinator[] > ([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [selectedMission, setSelectedMission] = useState < Mission | null > (null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedCoordinator, setSelectedCoordinator] = useState('');
 
@@ -51,12 +51,12 @@ export default function MissionDispatch() {
       ]);
 
       const pendingMissions = missionsData.filter(
-        (m: Mission) => m.statut === 'pending' || m.statut === 'assigned' || m.statut === 'refused'
+        (m: Mission) => m.statut === 'en_attente' || m.statut === 'planifiee' || m.statut === 'refusee'
       );
       setMissions(pendingMissions);
 
       const activeCoordinators = usersData.filter(
-        (u: any) => u.role === 'ROLE_USER' && u.is_active
+        (u: any) => u.role === 'ROLE_USER' && u.isActive
       );
       setCoordinators(activeCoordinators);
     } catch (error) {
@@ -89,11 +89,11 @@ export default function MissionDispatch() {
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
-      case 'pending':
+      case 'en_attente':
         return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'assigned':
+      case 'planifiee':
         return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'refused':
+      case 'refusee':
         return 'bg-red-100 text-red-700 border-red-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
@@ -102,11 +102,11 @@ export default function MissionDispatch() {
 
   const getStatusLabel = (statut: string) => {
     switch (statut) {
-      case 'pending':
+      case 'en_attente':
         return 'En attente';
-      case 'assigned':
+      case 'planifiee':
         return 'Affectée';
-      case 'refused':
+      case 'refusee':
         return 'Refusée';
       default:
         return statut;
@@ -253,7 +253,7 @@ export default function MissionDispatch() {
                   <option value="">-- Sélectionner --</option>
                   {coordinators.map((coord) => (
                     <option key={coord.id} value={coord.id}>
-                      {coord.first_name} {coord.last_name}
+                      {coord.firstName} {coord.lastName}
                       {coord.zone_geographique ? ` - ${coord.zone_geographique}` : ''}
                     </option>
                   ))}

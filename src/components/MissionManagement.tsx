@@ -5,12 +5,12 @@ import { Plus, Search, Filter, Calendar, MapPin, User } from 'lucide-react';
 
 interface Mission {
   id: string;
-  chantier_nom: string;
-  chantier_ville: string;
-  client_nom: string;
-  date_debut: string;
+  title: string;
+  address: string;
+  client: string;
+  date: string;
   date_fin: string;
-  statut: string;
+  status: string;
   coordinator_first_name?: string;
   coordinator_last_name?: string;
   consignes?: string;
@@ -18,21 +18,22 @@ interface Mission {
 
 export default function MissionManagement() {
   const { profile: currentUser } = useAuth();
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [coordinators, setCoordinators] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [missions, setMissions] = useState < Mission[] > ([]);
+  const [filteredMissions, setFilteredMissions] = useState < Mission[] > ([]);
+  const [coordinators, setCoordinators] = useState < any[] > ([]);
+  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState < string > ('all');
 
   const [formData, setFormData] = useState({
-    client_nom: '',
-    chantier_nom: '',
+    client: '',
+    title: '',
     chantier_adresse: '',
-    chantier_ville: '',
+    address: '',
     chantier_code_postal: '',
     reference_interne: '',
-    date_debut: '',
+    date: '',
     date_fin: '',
     consignes: '',
     coordinator_id: '',
@@ -41,23 +42,38 @@ export default function MissionManagement() {
   const isAdmin = currentUser?.role === 'ROLE_ADMIN';
 
   useEffect(() => {
-    fetchData();
+    if (!loading && missions.length === 0) {
+      fetchData();
+    }
+    return () => { setLoading(false); setMissions([]); setFilteredMissions([]); };
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [missionsData, usersData] = await Promise.all([
-        missionsAPI.getAll(),
-        usersAPI.getAll(),
-      ]);
+    if (!loading) {
+      setLoading(true);
+      try {
+        const [missionsData, usersData] = await Promise.all([
+          missionsAPI.getAll(),
+          usersAPI.getAll(),
+        ]);
+        missionsData.map((mission: any) => {
+          const coordinator = usersData.find((u: any) => u.id === mission.userId);
+          if (coordinator) {
+            mission.coordinator_first_name = coordinator.firstName;
+            mission.coordinator_last_name = coordinator.lastName;
+          }
+          return mission;
+        });
 
-      setMissions(missionsData);
-      setCoordinators(usersData.filter((u: any) => u.role === 'ROLE_USER' && u.is_active));
-    } catch (error) {
-      console.error('Error fetching data:', error);
+        setMissions(missionsData);
+        setCoordinators(usersData.filter((u: any) => u.role === 'ROLE_USER' && u.isActive));
+        setFilteredMissions(missionsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-    setLoading(false);
   };
 
   const handleCreateMission = async (e: React.FormEvent) => {
@@ -66,13 +82,13 @@ export default function MissionManagement() {
 
     try {
       await missionsAPI.create({
-        client_nom: formData.client_nom,
-        chantier_nom: formData.chantier_nom,
+        client: formData.client,
+        title: formData.title,
         chantier_adresse: formData.chantier_adresse,
-        chantier_ville: formData.chantier_ville,
+        address: formData.address,
         chantier_code_postal: formData.chantier_code_postal || null,
         reference_interne: formData.reference_interne || null,
-        date_debut: formData.date_debut,
+        date: formData.date,
         date_fin: formData.date_fin,
         consignes: formData.consignes || null,
         coordinator_id: formData.coordinator_id || null,
@@ -89,51 +105,60 @@ export default function MissionManagement() {
 
   const resetForm = () => {
     setFormData({
-      client_nom: '',
-      chantier_nom: '',
+      client: '',
+      title: '',
       chantier_adresse: '',
-      chantier_ville: '',
+      address: '',
       chantier_code_postal: '',
       reference_interne: '',
-      date_debut: '',
+      date: '',
       date_fin: '',
       consignes: '',
       coordinator_id: '',
     });
   };
 
-  const filteredMissions = missions.filter(mission => {
-    const matchesSearch =
-      mission.chantier_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      mission.client_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      mission.chantier_ville?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filterMissions = (status: string, term: string) => {
+    if (status === 'all' && term.trim() === '') {
+      setFilteredMissions(missions);
+      return;
+    }
+    const missionsToFilter = missions.filter(mission => {
+      const matchesSearch =
+        mission.title?.toLowerCase().includes(term.toLowerCase()) ||
+        mission.client?.toLowerCase().includes(term.toLowerCase()) ||
+        mission.address?.toLowerCase().includes(term.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || mission.statut === statusFilter;
+      const matchesStatus = status === 'all' || mission.status === status;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+    const missionsCopy: Mission[] = [];
+    Object.assign(missionsCopy, missionsToFilter);
+    setFilteredMissions(missionsCopy);
+  }
 
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case 'pending': return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'assigned': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'refused': return 'bg-red-100 text-red-700 border-red-200';
-      case 'in_progress': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'completed': return 'bg-green-100 text-green-700 border-green-200';
-      case 'cancelled': return 'bg-slate-100 text-slate-700 border-slate-200';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'en_attente': return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'planifiee': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'refusee': return 'bg-red-100 text-red-700 border-red-200';
+      case 'en_cours': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'terminee': return 'bg-green-100 text-green-700 border-green-200';
+      case 'annulee': return 'bg-slate-100 text-slate-700 border-slate-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
-  const getStatusLabel = (statut: string) => {
-    switch (statut) {
-      case 'pending': return 'En attente';
-      case 'assigned': return 'Affectée';
-      case 'refused': return 'Refusée';
-      case 'in_progress': return 'En cours';
-      case 'completed': return 'Terminée';
-      case 'cancelled': return 'Annulée';
-      default: return statut;
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'en_attente': return 'En attente';
+      case 'planifiee': return 'Affectée';
+      case 'refusee': return 'Refusée';
+      case 'en_cours': return 'En cours';
+      case 'terminee': return 'Terminée';
+      case 'annulee': return 'Annulée';
+      default: return status;
     }
   };
 
@@ -170,7 +195,7 @@ export default function MissionManagement() {
               type="text"
               placeholder="Rechercher par chantier, client, ville..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); filterMissions(statusFilter, e.target.value); }}
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
             />
           </div>
@@ -178,16 +203,16 @@ export default function MissionManagement() {
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); filterMissions(e.target.value, searchTerm); }}
               className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none appearance-none bg-white"
             >
               <option value="all">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="assigned">Affectée</option>
-              <option value="in_progress">En cours</option>
-              <option value="completed">Terminée</option>
-              <option value="refused">Refusée</option>
-              <option value="cancelled">Annulée</option>
+              <option value="en_attente">En attente</option>
+              <option value="planifiee">Affectée</option>
+              <option value="en_cours">En cours</option>
+              <option value="terminee">Terminée</option>
+              <option value="refusee">Refusée</option>
+              <option value="annulee">Annulée</option>
             </select>
           </div>
         </div>
@@ -208,20 +233,20 @@ export default function MissionManagement() {
                 <tr key={mission.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-medium text-slate-900">{mission.chantier_nom}</p>
+                      <p className="font-medium text-slate-900">{mission.title}</p>
                       <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
                         <MapPin className="w-3.5 h-3.5" />
-                        {mission.chantier_ville}
+                        {mission.address}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-700">
-                    {mission.client_nom}
+                    {mission.client}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1 text-sm text-slate-700">
                       <Calendar className="w-3.5 h-3.5" />
-                      {new Date(mission.date_debut).toLocaleDateString('fr-FR')} - {new Date(mission.date_fin).toLocaleDateString('fr-FR')}
+                      {new Date(mission.date).toLocaleDateString('fr-FR')} - {new Date(mission.date_fin).toLocaleDateString('fr-FR')}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -237,8 +262,8 @@ export default function MissionManagement() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.statut)}`}>
-                      {getStatusLabel(mission.statut)}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.status)}`}>
+                      {getStatusLabel(mission.status)}
                     </span>
                   </td>
                 </tr>
@@ -260,8 +285,8 @@ export default function MissionManagement() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Nom du client</label>
                 <input
                   type="text"
-                  value={formData.client_nom}
-                  onChange={(e) => setFormData({ ...formData, client_nom: e.target.value })}
+                  value={formData.client}
+                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   required
                 />
@@ -272,8 +297,8 @@ export default function MissionManagement() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Nom du chantier</label>
                   <input
                     type="text"
-                    value={formData.chantier_nom}
-                    onChange={(e) => setFormData({ ...formData, chantier_nom: e.target.value })}
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   />
@@ -305,8 +330,8 @@ export default function MissionManagement() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Ville</label>
                   <input
                     type="text"
-                    value={formData.chantier_ville}
-                    onChange={(e) => setFormData({ ...formData, chantier_ville: e.target.value })}
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   />
@@ -327,8 +352,8 @@ export default function MissionManagement() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Date de début</label>
                   <input
                     type="date"
-                    value={formData.date_debut}
-                    onChange={(e) => setFormData({ ...formData, date_debut: e.target.value })}
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   />
@@ -355,7 +380,7 @@ export default function MissionManagement() {
                   <option value="">Non affecté</option>
                   {coordinators.map(coord => (
                     <option key={coord.id} value={coord.id}>
-                      {coord.first_name} {coord.last_name} {coord.zone_geographique ? `(${coord.zone_geographique})` : ''}
+                      {coord.firstName} {coord.lastName} {coord.zone_geographique ? `(${coord.zone_geographique})` : ''}
                     </option>
                   ))}
                 </select>

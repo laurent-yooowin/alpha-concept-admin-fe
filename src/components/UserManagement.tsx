@@ -6,30 +6,30 @@ import { Plus, Edit2, UserX, UserCheck, Search, Filter } from 'lucide-react';
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   phone: string | null;
   role: 'ROLE_ADMIN' | 'ROLE_USER';
   zone_geographique: string | null;
   specialite: string | null;
-  is_active: boolean;
+  isActive: boolean;
   created_at: string;
 }
 
 export default function UserManagement() {
   const { profile: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState < User[] > ([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState < User | null > (null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState < string > ('all');
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    first_name: '',
-    last_name: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     role: 'ROLE_USER' as 'ROLE_ADMIN' | 'ROLE_USER',
     zone_geographique: '',
@@ -61,13 +61,13 @@ export default function UserManagement() {
       await usersAPI.create({
         email: formData.email,
         password: formData.password,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         phone: formData.phone || null,
         role: formData.role,
         zone_geographique: formData.zone_geographique || null,
         specialite: formData.specialite || null,
-        is_active: true,
+        isActive: true,
       });
 
       setShowModal(false);
@@ -85,8 +85,8 @@ export default function UserManagement() {
 
     try {
       await usersAPI.update(editingUser.id, {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         phone: formData.phone || null,
         role: formData.role,
         zone_geographique: formData.zone_geographique || null,
@@ -108,7 +108,7 @@ export default function UserManagement() {
 
     try {
       await usersAPI.update(user.id, {
-        is_active: !user.is_active,
+        isActive: !user.isActive,
       });
       fetchUsers();
     } catch (error) {
@@ -120,8 +120,8 @@ export default function UserManagement() {
     setFormData({
       email: '',
       password: '',
-      first_name: '',
-      last_name: '',
+      firstName: '',
+      lastName: '',
       phone: '',
       role: 'ROLE_USER',
       zone_geographique: '',
@@ -134,8 +134,8 @@ export default function UserManagement() {
     setFormData({
       email: user.email,
       password: '',
-      first_name: user.first_name,
-      last_name: user.last_name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       phone: user.phone || '',
       role: user.role,
       zone_geographique: user.zone_geographique || '',
@@ -144,10 +144,10 @@ export default function UserManagement() {
     setShowModal(true);
   };
 
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = users?.filter(user => {
     const matchesSearch =
-      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
@@ -243,7 +243,7 @@ export default function UserManagement() {
                   <td className="px-6 py-4">
                     <div>
                       <p className="font-medium text-slate-900">
-                        {user.first_name} {user.last_name}
+                        {user.firstName} {user.lastName}
                       </p>
                       <p className="text-sm text-slate-600">{user.email}</p>
                     </div>
@@ -265,12 +265,11 @@ export default function UserManagement() {
                     ) : '-'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                      user.is_active
-                        ? 'bg-green-100 text-green-700 border border-green-200'
-                        : 'bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}>
-                      {user.is_active ? 'Actif' : 'Inactif'}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${user.isActive
+                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}>
+                      {user.isActive ? 'Actif' : 'Inactif'}
                     </span>
                   </td>
                   {isAdmin && (
@@ -285,14 +284,13 @@ export default function UserManagement() {
                         </button>
                         <button
                           onClick={() => toggleUserStatus(user)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            user.is_active
-                              ? 'text-red-600 hover:bg-red-50'
-                              : 'text-green-600 hover:bg-green-50'
-                          }`}
-                          title={user.is_active ? 'Désactiver' : 'Activer'}
+                          className={`p-2 rounded-lg transition-colors ${user.isActive
+                            ? 'text-red-600 hover:bg-red-50'
+                            : 'text-green-600 hover:bg-green-50'
+                            }`}
+                          title={user.isActive ? 'Désactiver' : 'Activer'}
                         >
-                          {user.is_active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>
@@ -319,8 +317,8 @@ export default function UserManagement() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Prénom</label>
                   <input
                     type="text"
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   />
@@ -329,8 +327,8 @@ export default function UserManagement() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Nom</label>
                   <input
                     type="text"
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   />

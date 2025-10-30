@@ -69,9 +69,8 @@ export default function Layout() {
       </div>
 
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-prosps-blue backdrop-blur-md border-r border-prosps-blue-dark transform transition-transform duration-300 z-40 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        className={`fixed top-0 left-0 h-full w-64 bg-prosps-blue backdrop-blur-md border-r border-prosps-blue-dark transform transition-transform duration-300 z-40 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/20">
           <img src="/ChatGPT Image 20 oct. 2025, 19_08_46.png" alt="PROSPS" className="h-20 mb-2" />
@@ -87,11 +86,10 @@ export default function Layout() {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-white text-prosps-blue'
-                    : 'text-white hover:bg-white/10'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                  ? 'bg-white text-prosps-blue'
+                  : 'text-white hover:bg-white/10'
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.name}</span>
@@ -104,7 +102,7 @@ export default function Layout() {
           {profile && (
             <div className="px-4 py-3 bg-white/10 rounded-lg">
               <p className="text-sm font-medium text-white">
-                {profile.first_name} {profile.last_name}
+                {profile.firstName} {profile.lastName}
               </p>
               <p className="text-xs text-white/70 mt-1">
                 {profile.role === 'ROLE_ADMIN' ? 'Administrateur' : 'Coordonnateur'}
