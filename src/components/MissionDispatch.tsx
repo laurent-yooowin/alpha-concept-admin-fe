@@ -1,35 +1,38 @@
 import { useState, useEffect } from 'react';
 import { missionsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Send, X, MapPin, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { UserPlus, Send, X, MapPin, Calendar, CheckCircle, Clock } from 'lucide-react';
 
 interface Mission {
   id: string;
-  chantier_nom: string;
-  chantier_ville: string;
-  client_nom: string;
-  date_debut: string;
-  date_fin: string;
-  statut: string;
-  coordinator_id: string | null;
-  coordinator_first_name?: string;
-  coordinator_last_name?: string;
-  consignes?: string;
+  title: string;
+  client: string;
+  address: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+  userId: string;
+  user?: {
+    firstName: string;
+    lastName: string;
+  };
+  description?: string | null;
 }
 
 interface Coordinator {
   id: string;
   firstName: string;
   lastName: string;
-  zone_geographique?: string;
+  zoneGeographique?: string;
 }
 
 export default function MissionDispatch() {
   const { profile: currentUser } = useAuth();
-  const [missions, setMissions] = useState < Mission[] > ([]);
-  const [coordinators, setCoordinators] = useState < Coordinator[] > ([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMission, setSelectedMission] = useState < Mission | null > (null);
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedCoordinator, setSelectedCoordinator] = useState('');
 
@@ -51,7 +54,7 @@ export default function MissionDispatch() {
       ]);
 
       const pendingMissions = missionsData.filter(
-        (m: Mission) => m.statut === 'en_attente' || m.statut === 'planifiee' || m.statut === 'refusee'
+        (m: Mission) => m.status === 'planifiee' || m.status === 'affectee' || m.status === 'refusee'
       );
       setMissions(pendingMissions);
 
@@ -68,7 +71,7 @@ export default function MissionDispatch() {
 
   const openAssignModal = (mission: Mission) => {
     setSelectedMission(mission);
-    setSelectedCoordinator(mission.coordinator_id || '');
+    setSelectedCoordinator(mission.userId || '');
     setShowAssignModal(true);
   };
 
@@ -87,11 +90,11 @@ export default function MissionDispatch() {
     }
   };
 
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case 'en_attente':
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+  const getStatusColor = (status: string) => {
+    switch (status) {
       case 'planifiee':
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'affectee':
         return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'refusee':
         return 'bg-red-100 text-red-700 border-red-200';
@@ -100,16 +103,16 @@ export default function MissionDispatch() {
     }
   };
 
-  const getStatusLabel = (statut: string) => {
-    switch (statut) {
-      case 'en_attente':
-        return 'En attente';
+  const getStatusLabel = (status: string) => {
+    switch (status) {
       case 'planifiee':
+        return 'Planifiée';
+      case 'affectee':
         return 'Affectée';
       case 'refusee':
         return 'Refusée';
       default:
-        return statut;
+        return status;
     }
   };
 
@@ -143,37 +146,42 @@ export default function MissionDispatch() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-slate-900 mb-1">
-                  {mission.chantier_nom}
+                  {mission.title}
                 </h3>
                 <div className="flex items-center gap-1 text-sm text-slate-600">
                   <MapPin className="w-4 h-4" />
-                  {mission.chantier_ville}
+                  {mission.address}
                 </div>
               </div>
               <span
                 className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                  mission.statut
+                  mission.status
                 )}`}
               >
-                {getStatusLabel(mission.statut)}
+                {getStatusLabel(mission.status)}
               </span>
             </div>
 
             <div className="space-y-3 mb-4">
               <div className="flex items-center gap-2 text-sm text-slate-700">
                 <span className="font-medium">Client:</span>
-                {mission.client_nom}
+                {mission.client}
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-700">
                 <Calendar className="w-4 h-4" />
-                {new Date(mission.date_debut).toLocaleDateString('fr-FR')} -{' '}
-                {new Date(mission.date_fin).toLocaleDateString('fr-FR')}
+                {new Date(mission.date).toLocaleDateString('fr-FR')}
+                <Clock className="w-4 h-4 ml-2" />
+                {mission.time}
               </div>
-              {mission.coordinator_first_name && (
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <span className="font-medium">Type:</span>
+                <span className="capitalize">{mission.type}</span>
+              </div>
+              {mission.user && (
                 <div className="flex items-center gap-2 text-sm">
                   <UserPlus className="w-4 h-4 text-blue-600" />
                   <span className="text-blue-900 font-medium">
-                    {mission.coordinator_first_name} {mission.coordinator_last_name}
+                    {mission.user.firstName} {mission.user.lastName}
                   </span>
                 </div>
               )}
@@ -183,7 +191,7 @@ export default function MissionDispatch() {
               onClick={() => openAssignModal(mission)}
               className="w-full flex items-center justify-center gap-2 bg-prosps-blue text-white px-4 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"
             >
-              {mission.coordinator_id ? (
+              {mission.userId ? (
                 <>
                   <UserPlus className="w-4 h-4" />
                   Réaffecter
@@ -225,19 +233,19 @@ export default function MissionDispatch() {
             <div className="p-6 space-y-6">
               <div className="bg-slate-50 p-4 rounded-lg">
                 <h3 className="font-bold text-slate-900 mb-2">
-                  {selectedMission.chantier_nom}
+                  {selectedMission.title}
                 </h3>
                 <div className="space-y-1 text-sm text-slate-600">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    {selectedMission.chantier_ville}
+                    {selectedMission.address}
                   </div>
-                  <div>Client: {selectedMission.client_nom}</div>
+                  <div>Client: {selectedMission.client}</div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {new Date(selectedMission.date_debut).toLocaleDateString('fr-FR')} -{' '}
-                    {new Date(selectedMission.date_fin).toLocaleDateString('fr-FR')}
+                    {new Date(selectedMission.date).toLocaleDateString('fr-FR')} à {selectedMission.time}
                   </div>
+                  <div>Type: <span className="capitalize">{selectedMission.type}</span></div>
                 </div>
               </div>
 
@@ -254,7 +262,7 @@ export default function MissionDispatch() {
                   {coordinators.map((coord) => (
                     <option key={coord.id} value={coord.id}>
                       {coord.firstName} {coord.lastName}
-                      {coord.zone_geographique ? ` - ${coord.zone_geographique}` : ''}
+                      {coord.zoneGeographique ? ` - ${coord.zoneGeographique}` : ''}
                     </option>
                   ))}
                 </select>
