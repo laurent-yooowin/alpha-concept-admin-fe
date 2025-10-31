@@ -170,10 +170,10 @@ export const missionsAPI = {
     });
   },
 
-  assign: async (id: string, coordinatorId: string) => {
+  assign: async (id: string, userIds: string[]) => {
     return apiRequest(`/missions/${id}/assign`, {
       method: 'POST',
-      body: JSON.stringify({ coordinatorId }),
+      body: JSON.stringify({ userIds }),
     });
   },
 

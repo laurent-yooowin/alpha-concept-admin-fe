@@ -26,12 +26,12 @@ interface Mission {
 
 export default function MissionManagement() {
   const { profile: currentUser } = useAuth();
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [coordinators, setCoordinators] = useState<any[]>([]);
+  const [missions, setMissions] = useState < Mission[] > ([]);
+  const [coordinators, setCoordinators] = useState < any[] > ([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState < string > ('all');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -129,6 +129,7 @@ export default function MissionManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'assignee': return 'bg-slate-100 text-slate-700 border-slate-200';
       case 'planifiee': return 'bg-slate-100 text-slate-700 border-slate-200';
       case 'affectee': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'refusee': return 'bg-red-100 text-red-700 border-red-200';
@@ -141,6 +142,7 @@ export default function MissionManagement() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'assignee': return 'Assignée';
       case 'planifiee': return 'Planifiée';
       case 'affectee': return 'Affectée';
       case 'refusee': return 'Refusée';
@@ -352,7 +354,7 @@ export default function MissionManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Coordonnateur (optionnel)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Coordonnateur </label>
                 <select
                   value={formData.userId}
                   onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
@@ -368,10 +370,10 @@ export default function MissionManagement() {
               </div>
 
               <div className="border-t border-slate-200 pt-4 mt-4">
-                <h3 className="font-semibold text-slate-900 mb-4">Contact sur site (optionnel)</h3>
+                <h3 className="font-semibold text-slate-900 mb-4">Contact sur site *</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Prénom</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Prénom *</label>
                     <input
                       type="text"
                       value={formData.contactFirstName}
@@ -380,7 +382,7 @@ export default function MissionManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Nom</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Nom *</label>
                     <input
                       type="text"
                       value={formData.contactLastName}
@@ -389,7 +391,7 @@ export default function MissionManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Email *</label>
                     <input
                       type="email"
                       value={formData.contactEmail}
@@ -398,7 +400,7 @@ export default function MissionManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Téléphone</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Téléphone *</label>
                     <input
                       type="tel"
                       value={formData.contactPhone}

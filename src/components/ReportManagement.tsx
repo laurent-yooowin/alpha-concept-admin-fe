@@ -26,6 +26,9 @@ interface Report {
   header: string | null;
   footer: string | null;
   contactEmail: string | null;
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  contactPhone: string | number |null;
   conformityPercentage: number | null;
 }
 
@@ -86,6 +89,9 @@ export default function ReportManagement() {
           report.client = mission.client;
           report.mission = mission.title;
           report.contactEmail = mission.contactEmail;
+          report.contactFirstName = mission.contactFirstName;
+          report.contactLastName = mission.contactLastName;
+          report.contactPhone = mission.contactPhone;
           // const clientUser = usersData.find((u: any) => u.id === mission.client_id);
           // report.client = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : 'Inconnu';
         }
@@ -183,6 +189,7 @@ export default function ReportManagement() {
         header: selectedReport.header || '',
         content: selectedReport.content || 'Contenu non disponible',
         footer: selectedReport.footer || '',
+        observations: selectedReport.observations || '',
         photos: photos,
       };
 
@@ -190,7 +197,7 @@ export default function ReportManagement() {
 
       const confirm = await Swal.fire({
         title: 'Confirmer l’envoi du rapport',
-        text: `Voulez-vous vraiment envoyer le rapport PDF au client ${pdfData.client} ?`,
+        text: `Voulez-vous vraiment envoyer le rapport PDF au client ${selectedReport.contactFirstName} ?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Oui, envoyer',
@@ -521,7 +528,7 @@ export default function ReportManagement() {
                 )}
               </div>
 
-              {isAdmin && (
+              {false && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Remarques administrateur</label>
                   {isEditing ? (
@@ -599,7 +606,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.status === 'envoye' && (
+                        {selectedReport.status === 'envoye' && isAdmin &&  (
                         <button
                           onClick={handleValidateReport}
                           className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -609,7 +616,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.status === 'valide' && (
+                      {selectedReport.status === 'valide' && isAdmin && (
                         <button
                           onClick={handleSendToClient}
                           className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"

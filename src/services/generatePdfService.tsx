@@ -424,7 +424,7 @@ export const generatePdfService = {
           </div>
         </div>
 
-        ${reportData.heaer ? `
+        ${reportData.header ? `
           <div class="section-header">📋 En-tête</div>
           <div class="content-section">${reportData.heaer}</div>
         ` : ''}
@@ -435,6 +435,11 @@ export const generatePdfService = {
         ${reportData.footer ? `
           <div class="section-header">✅ Conclusion</div>
           <div class="content-section">${reportData.footer?.replaceAll('CONCLUSION:\n', '')}</div>
+        ` : ''}
+        
+        ${reportData.observations ? `
+          <div class="section-header">✅ Observations Générales</div>
+          <div class="content-section">${reportData.observations?.replaceAll('OBSERVATIONS:\n', '')}</div>
         ` : ''}
 
         <div class="footer">

@@ -33,7 +33,7 @@ export default function Layout() {
     { path: '/dispatch', name: 'Attribution', icon: Send, show: isAdmin },
     { path: '/reports', name: 'Rapports', icon: FileText, show: true },
     { path: '/users', name: 'Utilisateurs', icon: Users, show: isAdmin },
-    { path: '/logs', name: 'Logs d\'activité', icon: Activity, show: isAdmin },
+    { path: '/logs', name: 'Logs d\'activité', icon: Activity, show: false },
   ];
 
   const handleSignOut = async () => {
