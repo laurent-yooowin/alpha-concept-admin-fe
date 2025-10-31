@@ -36,6 +36,7 @@ export default function MissionManagement() {
   const [formData, setFormData] = useState({
     title: '',
     client: '',
+    refClient: '',
     address: '',
     date: '',
     time: '',
@@ -78,6 +79,7 @@ export default function MissionManagement() {
       await missionsAPI.create({
         title: formData.title,
         client: formData.client,
+        refClient: formData.refClient || null,
         address: formData.address,
         date: formData.date,
         time: formData.time,
@@ -103,6 +105,7 @@ export default function MissionManagement() {
     setFormData({
       title: '',
       client: '',
+      refClient: '',
       address: '',
       date: '',
       time: '',
@@ -291,7 +294,7 @@ export default function MissionManagement() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Client *</label>
                   <input
@@ -300,6 +303,15 @@ export default function MissionManagement() {
                     onChange={(e) => setFormData({ ...formData, client: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Référence client</label>
+                  <input
+                    type="text"
+                    value={formData.refClient}
+                    onChange={(e) => setFormData({ ...formData, refClient: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   />
                 </div>
                 <div>

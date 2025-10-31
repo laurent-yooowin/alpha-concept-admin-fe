@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { missionsAPI, reportsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin } from 'lucide-react';
+import { Search, Filter, Eye, Edit2, CheckCircle, Send, Calendar, MapPin, Download } from 'lucide-react';
 import { generatePdfService } from '../services/generatePdfService';
 import { visitService } from '../services/visitService';
 import Swal from 'sweetalert2';
@@ -106,6 +106,78 @@ export default function ReportManagement() {
       console.error('Error fetching reports:', error);
     }
     setLoading(false);
+  };
+
+  const exportToCSV = async () => {
+    try {
+      const [allMissions, allUsers] = await Promise.all([
+        missionsAPI.getAll(),
+        usersAPI.getAll(),
+      ]);
+
+      const csvData = filteredReports.map(report => {
+        const mission = allMissions.find((m: any) => m.id === report.missionId);
+        const user = mission ? allUsers.find((u: any) => u.id === mission.userId) : null;
+
+        return {
+          'Statut': report.status,
+          'Mission': mission?.title || '',
+          'Client': mission?.client || '',
+          'Référence Client': mission?.refClient || '',
+          'Adresse': mission?.address || '',
+          'Date': mission?.date ? new Date(mission.date).toLocaleDateString('fr-FR') : '',
+          'Heure': mission?.time || '',
+          'Type': mission?.type || '',
+          'Coordonnateur Prénom': user?.firstName || '',
+          'Coordonnateur Nom': user?.lastName || '',
+          'Email Coordonnateur': user?.email || '',
+          'Conformité (%)': report.conformityPercentage || '',
+          'Date Création': report.createdAt,
+          'Date Validation': report.validatedAt || '',
+          'Date Envoi Client': report.sentToClientAt || '',
+        };
+      });
+
+      const headers = Object.keys(csvData[0] || {});
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row =>
+          headers.map(header => {
+            const value = row[header as keyof typeof row];
+            const stringValue = String(value || '');
+            return stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')
+              ? `"${stringValue.replace(/"/g, '""')}"`
+              : stringValue;
+          }).join(',')
+        )
+      ].join('\n');
+
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `rapports_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Export réussi',
+        text: `${csvData.length} rapport(s) exporté(s)`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error exporting to CSV:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: 'Erreur lors de l\'export CSV',
+      });
+    }
   };
 
   const openViewModal = (report: Report) => {
@@ -356,9 +428,20 @@ export default function ReportManagement() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Gestion des rapports</h1>
-        <p className="text-slate-600 mt-1">{reports.length} rapport(s) au total</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Gestion des rapports</h1>
+          <p className="text-slate-600 mt-1">{reports.length} rapport(s) au total</p>
+        </div>
+        {filteredReports.length > 0 && (
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Download className="w-5 h-5" />
+            Exporter CSV
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
