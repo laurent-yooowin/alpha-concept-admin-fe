@@ -366,7 +366,7 @@ export default function MissionManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Coordonnateur </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Coordonnateur *</label>
                 <select
                   value={formData.userId}
                   onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
@@ -382,7 +382,7 @@ export default function MissionManagement() {
               </div>
 
               <div className="border-t border-slate-200 pt-4 mt-4">
-                <h3 className="font-semibold text-slate-900 mb-4">Contact sur site *</h3>
+                <h3 className="font-semibold text-slate-900 mb-4">Interloculeur *</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Prénom *</label>

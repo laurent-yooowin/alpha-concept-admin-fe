@@ -28,7 +28,7 @@ interface Report {
   contactEmail: string | null;
   contactFirstName: string | null;
   contactLastName: string | null;
-  contactPhone: string | number |null;
+  contactPhone: string | number | null;
   conformityPercentage: number | null;
 }
 
@@ -192,7 +192,7 @@ export default function ReportManagement() {
   };
 
   const handleValidateReport = async () => {
-    if (!selectedReport || !isAdmin) return;
+    if (!selectedReport ) return;
 
     try {
       await reportsAPI.update(selectedReport.id, {
@@ -212,7 +212,7 @@ export default function ReportManagement() {
   };
 
   const handleSendToClient = async () => {
-    if (!selectedReport || !isAdmin) return;
+    if (!selectedReport) return;
     let photos: any[] = [];
     try {
       const visitResponse = await visitService.getVisit(selectedReport.visitId);
@@ -330,7 +330,7 @@ export default function ReportManagement() {
 
           await reportsAPI.update(selectedReport.id, {
             status: 'envoye_au_client',
-            sentToClientAt: new Date().toISOString(),
+            // sentToClientAt: new Date().toISOString(),
           });
         } else {
           Swal.fire({
@@ -360,7 +360,7 @@ export default function ReportManagement() {
   };
 
   const handleSaveEdits = async () => {
-    if (!selectedReport || !isAdmin) return;
+    if (!selectedReport) return;
 
     try {
       await reportsAPI.update(selectedReport.id, {
@@ -400,7 +400,6 @@ export default function ReportManagement() {
     Object.assign(reportsCopy, reportsFilter);
     setFilteredReports(reportsCopy);
   }
-
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -501,7 +500,7 @@ export default function ReportManagement() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1 text-sm text-slate-700">
                       <Calendar className="w-3.5 h-3.5" />
-                      {new Date(report.createdAt).toLocaleDateString('fr-FR')}
+                      {report.createdAt}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -554,7 +553,7 @@ export default function ReportManagement() {
                   <div>
                     <p className="text-slate-600">Date de création</p>
                     <p className="font-medium text-slate-900">
-                      {new Date(selectedReport.createdAt).toLocaleDateString('fr-FR')}
+                      {selectedReport.createdAt}
                     </p>
                   </div>
                 </div>
@@ -562,7 +561,7 @@ export default function ReportManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Contenu du rapport</label>
-                {isEditing && isAdmin ? (
+                {isEditing ? (
                   <>
                     <p className="mb-1 text-sm text-slate-500">En-tête</p>
                     <textarea
@@ -597,7 +596,7 @@ export default function ReportManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Observations</label>
-                {isEditing && isAdmin ? (
+                {isEditing ? (
                   <textarea
                     value={editedObservations}
                     onChange={(e) => setEditedObservations(e.target.value)}
@@ -633,7 +632,7 @@ export default function ReportManagement() {
               {selectedReport.validatedAt && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-900">
-                    <strong>Validé le:</strong> {new Date(selectedReport.validatedAt).toLocaleDateString('fr-FR')} à {new Date(selectedReport.validatedAt).toLocaleTimeString('fr-FR')}
+                    <strong>Validé le:</strong> {selectedReport.validatedAt}
                   </p>
                 </div>
               )}
@@ -641,7 +640,7 @@ export default function ReportManagement() {
               {selectedReport.sentToClientAt && (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <p className="text-sm text-emerald-900">
-                    <strong>Envoyé au client le:</strong> {new Date(selectedReport.sentToClientAt).toLocaleDateString('fr-FR')} à {new Date(selectedReport.sentAt).toLocaleTimeString('fr-FR')}
+                    <strong>Envoyé au client le:</strong> {selectedReport.sentToClientAt}
                   </p>
                 </div>
               )}
@@ -659,7 +658,7 @@ export default function ReportManagement() {
                 Fermer
               </button>
 
-              {isAdmin && (
+              {true && (
                 <>
                   {isEditing ? (
                     <>
@@ -689,7 +688,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                        {selectedReport.status === 'envoye' && isAdmin &&  (
+                      {selectedReport.status === 'envoye' && isAdmin && false && (
                         <button
                           onClick={handleValidateReport}
                           className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -699,7 +698,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.status === 'valide' && isAdmin && (
+                      {selectedReport && !isAdmin && (
                         <button
                           onClick={handleSendToClient}
                           className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"
