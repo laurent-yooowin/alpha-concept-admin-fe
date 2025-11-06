@@ -47,6 +47,7 @@ export default function ReportManagement() {
   const [editedObservations, setEditedObservations] = useState('');
   const [adminRemarks, setAdminRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  // const [photos, setPhotos] = useState([]);
 
   const context = useAuth();
 
@@ -241,7 +242,8 @@ export default function ReportManagement() {
                 observations: observationText ? observationText.split('. ').filter((s: string) => s.length > 0) : [],
                 recommendations: recommendationText ? recommendationText.split('. ').filter((s: string) => s.length > 0) : [],
                 riskLevel: riskLevelMap[photo.analysis.riskLevel] || 'low',
-                confidence: Math.round((photo.analysis.confidence || 0) * 100)
+                confidence: (photo.analysis.confidence || 0),
+                references: photo.aiAnalysis?.references.join(', ') || ''
               } : undefined,
               comment: photo.comment || '',
               validated: photo.validated || true
@@ -359,10 +361,67 @@ export default function ReportManagement() {
     }
   };
 
+  // Update photo data from edited report content
+  const updatePhotosFromEditedContent = (photos: any[]) => {
+    const updatedPhotos = photos.map((photo, index) => {
+      const photoSectionRegex = new RegExp(
+        `Photo ${index + 1}[\\s\\S]*?(?=Photo ${index + 2}|$)`,
+        'i'
+      );
+      const photoSection = selectedReport?.content.match(photoSectionRegex)?.[0] || '';
+
+      if (photoSection) {
+        const obsRegex = /Observations:\s*([\s\S]*?)(?=\n\s*Recommandations:|$)/i;
+        const recRegex = /Recommandations:\s*([\s\S]*?)(?=\n\s*💬|$)/i;
+        const comRegex = /💬\s*Commentaires du coordonnateur:\s*([\s\S]*)/i;
+        const refsRegex = /🏛️\s*Références :\s*([\s\S]*)/i;
+
+        const observationsMatch = photoSection.match(obsRegex);
+        const recommendationsMatch = photoSection.match(recRegex);
+        const commentsMatch = photoSection.match(comRegex);
+        const refsMatch = photoSection.match(refsRegex);
+
+        const observations = observationsMatch?.[1]
+          ?.split('•')
+          .map(s => s.trim())
+          .filter(s => s.length > 0) || photo.aiAnalysis?.observations || [];
+
+        const recommendations = recommendationsMatch?.[1]
+          ?.split('•')
+          .map(s => s.trim())
+          .filter(s => s.length > 0) || photo.aiAnalysis?.recommendations || [];
+
+        const comments = commentsMatch?.[1]?.replaceAll('━━━━━━━━━━━━━━━━━━━━━', '').replaceAll('\n\n\n', '').replaceAll('\n\n', '') || photo.comment?.replaceAll('━━━━━━━━━━━━━━━━━━━━━', '').replaceAll('\n\n\n', '').replaceAll('\n\n', '') || '';
+
+        const references = refsMatch?.[1].replaceAll('━━━━━━━━━━━━━━━━━━━━━', '').replaceAll('\n\n\n', '').replaceAll('\n\n', '') || photo.comment?.replaceAll('━━━━━━━━━━━━━━━━━━━━━', '').replaceAll('\n\n\n', '').replaceAll('\n\n', '') || '';
+
+        return {
+          ...photo,
+          aiAnalysis: photo.aiAnalysis ? {
+            ...photo.aiAnalysis,
+            observations,
+            recommendations,
+            references,
+          } : undefined,
+          comment: comments,
+        };
+      }
+      return photo;
+    });
+    return updatedPhotos;
+    // setPhotos(updatedPhotos);
+  };
+
   const handleSaveEdits = async () => {
     if (!selectedReport) return;
-
+    let photos = [];
+    
     try {
+      const visitResponse = await visitService.getVisit(selectedReport.visitId);
+      // console.log('visitResponse.data.photos >>> : ', visitResponse.data.photos);
+      if (visitResponse && visitResponse.photos) {
+        photos = updatePhotosFromEditedContent(visitResponse.photos);
+      }
       await reportsAPI.update(selectedReport.id, {
         content: editedContent,
         header: editedHeader,
@@ -371,12 +430,26 @@ export default function ReportManagement() {
         remarquesAdmin: adminRemarks,
       });
 
+      await visitService.update(visitResponse.id, {
+        photos: photos
+      });
+
       setIsEditing(false);
       fetchReports();
-      alert('Modifications enregistrées');
+      Swal.fire({
+        title: 'Rapport sauvegardé !',
+        text: `Les modifications du rapport sont sauvegardé avec succès.`,
+        icon: 'success',
+        confirmButtonText: 'OK',
+      });
     } catch (error) {
       console.error('Error saving edits:', error);
-      alert('Erreur lors de l\'enregistrement');
+      Swal.fire({
+        title: 'Erreur !',
+        text: `Erreur lors de l\'enregistrement du rapport`,
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
     }
   };
 
@@ -678,7 +751,7 @@ export default function ReportManagement() {
                     </>
                   ) : (
                     <>
-                      {selectedReport.status !== 'envoye_au_client' && (
+                        {selectedReport && selectedReport.status !== 'envoye_au_client' && (
                         <button
                           onClick={() => setIsEditing(true)}
                           className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-50 transition-colors font-medium"
@@ -688,7 +761,7 @@ export default function ReportManagement() {
                         </button>
                       )}
 
-                      {selectedReport.status === 'envoye' && isAdmin && false && (
+                      {/* {selectedReport.status === 'envoye' && isAdmin && false && (
                         <button
                           onClick={handleValidateReport}
                           className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -696,9 +769,9 @@ export default function ReportManagement() {
                           <CheckCircle className="w-4 h-4" />
                           Valider
                         </button>
-                      )}
+                      )} */}
 
-                      {selectedReport && !isAdmin && (
+                        {selectedReport && !isAdmin && selectedReport.status !== 'envoye_au_client' && (
                         <button
                           onClick={handleSendToClient}
                           className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"

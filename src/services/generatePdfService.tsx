@@ -86,6 +86,13 @@ export const generatePdfService = {
                   </div>
                 ` : ''}
 
+                ${photo.aiAnalysis.references ? `
+                  <div class="comment-section">
+                    <h4 class="comment-heading">🏛️ Références</h4>
+                    <p class="comment-text">${photo.aiAnalysis.references}</p>
+                  </div>
+                ` : ''}
+
                 ${photo.comment ? `
                   <div class="comment-section">
                     <h4 class="comment-heading">💬 Commentaires du coordonnateur</h4>

@@ -6,5 +6,11 @@ export const visitService = {
 
         return apiRequest(url, { method: 'GET' });
 
-    }
+    },
+    async update(id: string, visitData: any){
+        return apiRequest(`/visits/${id}`, {
+          method: 'PUT',
+            body: JSON.stringify(visitData),
+        });
+      },
 };
