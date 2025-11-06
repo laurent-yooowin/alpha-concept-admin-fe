@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { missionsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Search, Filter, Calendar, MapPin, User, Clock } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User, Clock, Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Mission {
   id: string;
@@ -30,8 +30,12 @@ export default function MissionManagement() {
   const [coordinators, setCoordinators] = useState < any[] > ([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState < string > ('all');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -119,6 +123,56 @@ export default function MissionManagement() {
     });
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      if (fileExtension === 'csv' || fileExtension === 'xlsx' || fileExtension === 'xls') {
+        setImportFile(file);
+        setImportResult(null);
+      } else {
+        alert('Veuillez sélectionner un fichier CSV ou Excel (.csv, .xlsx, .xls)');
+      }
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      alert('Veuillez sélectionner un fichier');
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const result = await missionsAPI.bulkImport(formData);
+      setImportResult(result);
+
+      if (result.data.summary.imported > 0) {
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Error importing missions:', error);
+      setImportResult({
+        success: false,
+        message: error.message || 'Erreur lors de l\'import du fichier',
+        data: null,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setImportFile(null);
+    setImportResult(null);
+  };
+
   const filteredMissions = missions.filter(mission => {
     const matchesSearch =
       mission.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -168,16 +222,25 @@ export default function MissionManagement() {
           <p className="text-slate-600 mt-1">{missions.length} mission(s) au total</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle mission
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              <Upload className="w-5 h-5" />
+              Importer missions
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle mission
+            </button>
+          </div>
         )}
       </div>
 
@@ -449,6 +512,165 @@ export default function MissionManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900">Importer des missions</h2>
+              <button
+                onClick={closeImportModal}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {!importResult ? (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-900 mb-2">Format du fichier</h3>
+                    <p className="text-sm text-blue-800 mb-2">
+                      Formats acceptés : CSV, Excel (.xlsx, .xls)
+                    </p>
+                    <p className="text-sm text-blue-800">
+                      Le fichier doit contenir les colonnes nécessaires pour créer les missions.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Sélectionner un fichier
+                    </label>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-prosps-blue transition-colors">
+                      <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="file-upload"
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className="cursor-pointer flex flex-col items-center"
+                      >
+                        <Upload className="w-12 h-12 text-slate-400 mb-3" />
+                        <span className="text-slate-700 font-medium mb-1">
+                          Cliquez pour sélectionner un fichier
+                        </span>
+                        <span className="text-sm text-slate-500">
+                          CSV, XLSX ou XLS
+                        </span>
+                      </label>
+                    </div>
+                    {importFile && (
+                      <div className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        Fichier sélectionné : <span className="font-medium">{importFile.name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={closeImportModal}
+                      className="flex-1 px-6 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleImport}
+                      disabled={!importFile || importing}
+                      className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {importing ? 'Import en cours...' : 'Importer'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={`border rounded-lg p-4 ${importResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                    <div className="flex items-start gap-3">
+                      {importResult.success ? (
+                        <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <h3 className={`font-semibold mb-1 ${importResult.success ? 'text-green-900' : 'text-red-900'}`}>
+                          {importResult.success ? 'Import terminé' : 'Erreur d\'import'}
+                        </h3>
+                        <p className={`text-sm ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                          {importResult.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {importResult.data && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="bg-slate-100 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-slate-900">{importResult.data.summary.total}</div>
+                          <div className="text-sm text-slate-600">Total</div>
+                        </div>
+                        <div className="bg-green-100 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-green-900">{importResult.data.summary.imported}</div>
+                          <div className="text-sm text-green-700">Importées</div>
+                        </div>
+                        <div className="bg-amber-100 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-amber-900">{importResult.data.summary.ignored}</div>
+                          <div className="text-sm text-amber-700">Ignorées</div>
+                        </div>
+                        <div className="bg-red-100 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-red-900">{importResult.data.summary.failed}</div>
+                          <div className="text-sm text-red-700">Échecs</div>
+                        </div>
+                      </div>
+
+                      {importResult.data.errors && importResult.data.errors.length > 0 && (
+                        <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                          <h4 className="font-semibold text-red-900 mb-2">Erreurs détaillées</h4>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {importResult.data.errors.map((error: any, index: number) => (
+                              <div key={index} className="text-sm text-red-800 bg-white rounded p-2">
+                                <span className="font-medium">Ligne {error.row || index + 1}:</span> {error.error || error.message}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {importResult.data.ignoredMissions && importResult.data.ignoredMissions.length > 0 && (
+                        <div className="border border-amber-200 rounded-lg p-4 bg-amber-50">
+                          <h4 className="font-semibold text-amber-900 mb-2">Missions ignorées</h4>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {importResult.data.ignoredMissions.map((ignored: any, index: number) => (
+                              <div key={index} className="text-sm text-amber-800 bg-white rounded p-2">
+                                {ignored.title || `Mission ${index + 1}`}: {ignored.reason}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={closeImportModal}
+                      className="flex-1 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

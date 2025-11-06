@@ -177,6 +177,24 @@ export const missionsAPI = {
     });
   },
 
+  bulkImport: async (formData: FormData) => {
+    const token = getAccessToken();
+    const response = await fetch(`${API_BASE_URL}/missions/bulk-import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Erreur lors de l\'import' }));
+      throw new Error(error.message || 'Erreur lors de l\'import');
+    }
+
+    return response.json();
+  },
+
   getAssignedUsers: async (id: string) => {
     return apiRequest(`/missions/${id}/planifiee-users`);
   },
