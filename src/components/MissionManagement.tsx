@@ -35,10 +35,10 @@ export default function MissionManagement() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState < string > ('all');
-  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importFile, setImportFile] = useState < File | null > (null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
-  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [importResult, setImportResult] = useState < any > (null);
+  const [selectedMission, setSelectedMission] = useState < Mission | null > (null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -179,6 +179,8 @@ export default function MissionManagement() {
   const handleRowClick = (mission: Mission) => {
     if (!isAdmin) return;
 
+    if(mission.status == 'terminee') return ;
+
     setSelectedMission(mission);
     setFormData({
       title: mission.title,
@@ -201,6 +203,8 @@ export default function MissionManagement() {
   const handleUpdateMission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin || !selectedMission) return;
+
+    if (selectedMission.status == 'terminee') return;
 
     try {
       await missionsAPI.update(selectedMission.id, {
@@ -244,7 +248,9 @@ export default function MissionManagement() {
   const handleDeleteMission = async (mission: Mission, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (!isAdmin) return;
+    if (!isAdmin) return;   
+    
+    if (mission.status == 'terminee') return;
 
     const result = await Swal.fire({
       title: 'Confirmer la suppression',
@@ -438,11 +444,11 @@ export default function MissionManagement() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-8">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.status)}`}>
                         {getStatusLabel(mission.status)}
                       </span>
-                      {isAdmin && (
+                      {isAdmin && mission.status != 'terminee' && mission.status != 'en_cours' && !mission.assigned && (
                         <button
                           onClick={(e) => handleDeleteMission(mission, e)}
                           className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
@@ -855,11 +861,9 @@ export default function MissionManagement() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   >
-                    <option value="visite">Visite</option>
-                    <option value="inspection">Inspection</option>
-                    <option value="audit">Audit</option>
-                    <option value="formation">Formation</option>
-                    <option value="suivi">Suivi</option>
+                    <option value="CSPS">CSPS</option>
+                    <option value="AEU">AEU</option>
+                    <option value="Divers">Divers</option>
                   </select>
                 </div>
               </div>
