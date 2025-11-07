@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { missionsAPI, usersAPI } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Search, Filter, Calendar, MapPin, User, Clock, Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, User, Clock, Upload, X, CheckCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 interface Mission {
   id: string;
@@ -30,12 +31,14 @@ export default function MissionManagement() {
   const [coordinators, setCoordinators] = useState < any[] > ([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState < string > ('all');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -173,6 +176,110 @@ export default function MissionManagement() {
     setImportResult(null);
   };
 
+  const handleRowClick = (mission: Mission) => {
+    if (!isAdmin) return;
+
+    setSelectedMission(mission);
+    setFormData({
+      title: mission.title,
+      client: mission.client,
+      refClient: (mission as any).refClient || '',
+      address: mission.address,
+      date: mission.date,
+      time: mission.time,
+      type: mission.type,
+      description: mission.description || '',
+      contactFirstName: mission.contactFirstName || '',
+      contactLastName: mission.contactLastName || '',
+      contactEmail: mission.contactEmail || '',
+      contactPhone: mission.contactPhone || '',
+      userId: mission.userId,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateMission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin || !selectedMission) return;
+
+    try {
+      await missionsAPI.update(selectedMission.id, {
+        title: formData.title,
+        client: formData.client,
+        refClient: formData.refClient || null,
+        address: formData.address,
+        date: formData.date,
+        time: formData.time,
+        type: formData.type,
+        description: formData.description || null,
+        contactFirstName: formData.contactFirstName || null,
+        contactLastName: formData.contactLastName || null,
+        contactEmail: formData.contactEmail || null,
+        contactPhone: formData.contactPhone || null,
+        userId: formData.userId || null,
+      });
+
+      setShowEditModal(false);
+      setSelectedMission(null);
+      resetForm();
+      fetchData();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Mission modifiée',
+        text: 'La mission a été modifiée avec succès',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error updating mission:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: 'Erreur lors de la modification de la mission',
+      });
+    }
+  };
+
+  const handleDeleteMission = async (mission: Mission, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!isAdmin) return;
+
+    const result = await Swal.fire({
+      title: 'Confirmer la suppression',
+      html: `Êtes-vous sûr de vouloir supprimer la mission :<br/><strong>${mission.title}</strong> ?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Oui, supprimer',
+      cancelButtonText: 'Annuler',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await missionsAPI.delete(mission.id);
+        fetchData();
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Mission supprimée',
+          text: 'La mission a été supprimée avec succès',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        console.error('Error deleting mission:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: 'Erreur lors de la suppression de la mission',
+        });
+      }
+    }
+  };
+
   const filteredMissions = missions.filter(mission => {
     const matchesSearch =
       mission.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -288,7 +395,11 @@ export default function MissionManagement() {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredMissions.map((mission) => (
-                <tr key={mission.id} className="hover:bg-slate-50 transition-colors">
+                <tr
+                  key={mission.id}
+                  onClick={() => handleRowClick(mission)}
+                  className={`transition-colors ${isAdmin ? 'hover:bg-slate-50 cursor-pointer' : ''}`}
+                >
                   <td className="px-6 py-4">
                     <div>
                       <p className="font-medium text-slate-900">{mission.title}</p>
@@ -327,9 +438,20 @@ export default function MissionManagement() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.status)}`}>
-                      {getStatusLabel(mission.status)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(mission.status)}`}>
+                        {getStatusLabel(mission.status)}
+                      </span>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => handleDeleteMission(mission, e)}
+                          className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                          title="Supprimer la mission"
+                        >
+                          <Trash2 className="w-4 h-4 text-slate-400 group-hover:text-red-600" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -669,6 +791,201 @@ export default function MissionManagement() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && selectedMission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Edit className="w-6 h-6 text-prosps-blue" />
+                <h2 className="text-2xl font-bold text-slate-900">Modifier la mission</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedMission(null);
+                  resetForm();
+                }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateMission} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Titre de la mission *</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Client *</label>
+                  <input
+                    type="text"
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Référence client</label>
+                  <input
+                    type="text"
+                    value={formData.refClient}
+                    onChange={(e) => setFormData({ ...formData, refClient: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Type de mission *</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    required
+                  >
+                    <option value="visite">Visite</option>
+                    <option value="inspection">Inspection</option>
+                    <option value="audit">Audit</option>
+                    <option value="formation">Formation</option>
+                    <option value="suivi">Suivi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Adresse du chantier *</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Date *</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Heure *</label>
+                  <input
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Coordonnateur (optionnel)</label>
+                <select
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                >
+                  <option value="">Non affecté</option>
+                  {coordinators.map(coord => (
+                    <option key={coord.id} value={coord.id}>
+                      {coord.firstName} {coord.lastName} {coord.zoneGeographique ? `(${coord.zoneGeographique})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4 mt-4">
+                <h3 className="font-semibold text-slate-900 mb-4">Contact sur site (optionnel)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Prénom</label>
+                    <input
+                      type="text"
+                      value={formData.contactFirstName}
+                      onChange={(e) => setFormData({ ...formData, contactFirstName: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={formData.contactLastName}
+                      onChange={(e) => setFormData({ ...formData, contactLastName: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={formData.contactEmail}
+                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={formData.contactPhone}
+                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Description / Consignes</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedMission(null);
+                    resetForm();
+                  }}
+                  className="flex-1 px-6 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-prosps-blue text-white px-6 py-3 rounded-lg hover:bg-prosps-blue-dark transition-colors font-medium"
+                >
+                  Modifier la mission
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
