@@ -58,7 +58,7 @@ export default function Layout() {
 
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50">
         <div className="flex items-center gap-3">
-          <img src="/logo admin.jpg" alt="PROSPS" className="h-8" />
+          <img src="/logo admin.jpg" alt="Report BTP" className="h-8" />
         </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -73,7 +73,7 @@ export default function Layout() {
           } lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/20">
-          <img src="/ChatGPT Image 20 oct. 2025, 19_08_46.png" alt="PROSPS" className="h-20 mb-2" />
+          <img src="/ChatGPT Image 20 oct. 2025, 19_08_46.png" alt="Report BTP" className="h-20 mb-2" />
           <p className="text-sm text-white/90 mt-1">Plateforme de gestion SPS</p>
         </div>
 
