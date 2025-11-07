@@ -12,6 +12,8 @@ interface User {
   role: 'ROLE_ADMIN' | 'ROLE_USER';
   zone_geographique: string | null;
   specialite: string | null;
+  company: string | null;
+  experience: string | null;
   isActive: boolean;
   created_at: string;
 }
@@ -34,6 +36,9 @@ export default function UserManagement() {
     role: 'ROLE_USER' as 'ROLE_ADMIN' | 'ROLE_USER',
     zone_geographique: '',
     specialite: '',
+    company: '',
+    experience: '',
+    isActive: true,
   });
 
   const isAdmin = currentUser?.role === 'ROLE_ADMIN';
@@ -67,7 +72,9 @@ export default function UserManagement() {
         role: formData.role,
         zone_geographique: formData.zone_geographique || null,
         specialite: formData.specialite || null,
-        isActive: true,
+        company: formData.company || null,
+        experience: formData.experience || null,
+        isActive: formData.isActive,
       });
 
       setShowModal(false);
@@ -91,6 +98,9 @@ export default function UserManagement() {
         role: formData.role,
         zone_geographique: formData.zone_geographique || null,
         specialite: formData.specialite || null,
+        company: formData.company || null,
+        experience: formData.experience || null,
+        isActive: formData.isActive,
       });
 
       setShowModal(false);
@@ -126,6 +136,9 @@ export default function UserManagement() {
       role: 'ROLE_USER',
       zone_geographique: '',
       specialite: '',
+      company: '',
+      experience: '',
+      isActive: true,
     });
   };
 
@@ -140,6 +153,9 @@ export default function UserManagement() {
       role: user.role,
       zone_geographique: user.zone_geographique || '',
       specialite: user.specialite || '',
+      company: user.company || '',
+      experience: user.experience || '',
+      isActive: user.isActive,
     });
     setShowModal(true);
   };
@@ -403,6 +419,41 @@ export default function UserManagement() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Entreprise</label>
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Expérience</label>
+                  <input
+                    type="text"
+                    value={formData.experience}
+                    onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
+                    placeholder="Ex: 5 ans"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="w-4 h-4 text-prosps-blue border-slate-300 rounded focus:ring-2 focus:ring-prosps-blue"
+                />
+                <label htmlFor="isActive" className="text-sm font-medium text-slate-700 cursor-pointer">
+                  Compte actif
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4">
