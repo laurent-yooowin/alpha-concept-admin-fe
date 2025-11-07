@@ -44,7 +44,7 @@ export default function MissionManagement() {
     address: '',
     date: '',
     time: '',
-    type: 'visite',
+    type: 'CSPS',
     description: '',
     contactFirstName: '',
     contactLastName: '',
@@ -113,7 +113,7 @@ export default function MissionManagement() {
       address: '',
       date: '',
       time: '',
-      type: 'visite',
+      type: 'CSPS',
       description: '',
       contactFirstName: '',
       contactLastName: '',
@@ -385,11 +385,9 @@ export default function MissionManagement() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                     required
                   >
-                    <option value="visite">Visite</option>
-                    <option value="inspection">Inspection</option>
-                    <option value="audit">Audit</option>
-                    <option value="formation">Formation</option>
-                    <option value="suivi">Suivi</option>
+                    <option value="CSPS">CSPS</option>
+                    <option value="AEU">AEU</option>
+                    <option value="Divers">Divers</option>
                   </select>
                 </div>
               </div>
