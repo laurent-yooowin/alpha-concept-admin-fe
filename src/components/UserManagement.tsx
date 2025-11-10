@@ -10,8 +10,8 @@ interface User {
   lastName: string;
   phone: string | null;
   role: 'ROLE_ADMIN' | 'ROLE_USER';
-  zone_geographique: string | null;
-  specialite: string | null;
+  address: string | null;
+  // specialite: string | null;
   company: string | null;
   experience: string | null;
   isActive: boolean;
@@ -34,8 +34,8 @@ export default function UserManagement() {
     lastName: '',
     phone: '',
     role: 'ROLE_USER' as 'ROLE_ADMIN' | 'ROLE_USER',
-    zone_geographique: '',
-    specialite: '',
+    address: '',
+    // specialite: '',
     company: '',
     experience: '',
     isActive: true,
@@ -70,8 +70,8 @@ export default function UserManagement() {
         lastName: formData.lastName,
         phone: formData.phone || null,
         role: formData.role,
-        zone_geographique: formData.zone_geographique || null,
-        specialite: formData.specialite || null,
+        address: formData.address || null,
+        // specialite: formData.specialite || null,
         company: formData.company || null,
         experience: formData.experience || null,
         isActive: formData.isActive,
@@ -96,8 +96,8 @@ export default function UserManagement() {
         lastName: formData.lastName,
         phone: formData.phone || null,
         role: formData.role,
-        zone_geographique: formData.zone_geographique || null,
-        specialite: formData.specialite || null,
+        address: formData.address || null,
+        // specialite: formData.specialite || null,
         company: formData.company || null,
         experience: formData.experience || null,
         isActive: formData.isActive,
@@ -134,8 +134,8 @@ export default function UserManagement() {
       lastName: '',
       phone: '',
       role: 'ROLE_USER',
-      zone_geographique: '',
-      specialite: '',
+      address: '',
+      // specialite: '',
       company: '',
       experience: '',
       isActive: true,
@@ -151,8 +151,8 @@ export default function UserManagement() {
       lastName: user.lastName,
       phone: user.phone || '',
       role: user.role,
-      zone_geographique: user.zone_geographique || '',
-      specialite: user.specialite || '',
+      address: user.address || '',
+      // specialite: user.specialite || '',
       company: user.company || '',
       experience: user.experience || '',
       isActive: user.isActive,
@@ -246,7 +246,7 @@ export default function UserManagement() {
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Utilisateur</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Contact</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Rôle</th>
-                <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Zone / Spécialité</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Email</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Statut</th>
                 {isAdmin && (
                   <th className="text-right px-6 py-3 text-sm font-semibold text-slate-900">Actions</th>
@@ -273,10 +273,9 @@ export default function UserManagement() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {user.zone_geographique || user.specialite ? (
+                    {user.email ? (
                       <div>
-                        {user.zone_geographique && <div>{user.zone_geographique}</div>}
-                        {user.specialite && <div className="text-slate-500">{user.specialite}</div>}
+                        {user.email && <div>{user.email}</div>}
                       </div>
                     ) : '-'}
                   </td>
@@ -400,16 +399,16 @@ export default function UserManagement() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Zone géographique</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Adresse</label>
                   <input
                     type="text"
-                    value={formData.zone_geographique}
-                    onChange={(e) => setFormData({ ...formData, zone_geographique: e.target.value })}
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   />
                 </div>
+              {/* <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Spécialité</label>
                   <input
@@ -419,7 +418,7 @@ export default function UserManagement() {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-prosps-blue focus:border-transparent outline-none"
                   />
                 </div>
-              </div>
+              </div>  */}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

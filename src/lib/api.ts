@@ -121,7 +121,7 @@ export const usersAPI = {
   },
 
   create: async (userData: any) => {
-    return apiRequest('/users', {
+    return apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
